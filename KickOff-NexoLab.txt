@@ -1,0 +1,162 @@
+================================================================================
+NEXOLAB — RESUMEN PARA KICK-OFF
+Para armar presentación / Canva
+================================================================================
+
+NOMBRE DEL PROYECTO
+-------------------
+NexoLab
+
+
+TAGLINE
+-------
+Laboratorios conectados
+
+
+¿QUÉ ES?
+--------
+Una aplicación web para gestionar laboratorios universitarios:
+reservas de espacios, inventario de equipo, materias e incidencias.
+
+
+¿PARA QUÉ SIRVE?
+----------------
+- Evitar choques de horario al reservar laboratorios.
+- Saber qué equipo hay y en qué estado está.
+- Reportar fallas y darles seguimiento.
+- Ver reportes simples para tomar decisiones (ocupación, uso de equipo, etc.).
+
+
+¿QUIÉN LO USA?
+--------------
+- Administradores de laboratorios
+- Docentes
+- Alumnos (según permisos)
+
+
+ALCANCE DEL PROYECTO (LO QUE VAMOS A HACER)
+-------------------------------------------
+1. Login y registro de usuarios
+2. Pantallas para administrar:
+   - Laboratorios
+   - Equipos
+   - Reservas
+   - Asignación de equipo a reservas
+   - Materias
+   - Incidencias
+   - Usuarios
+3. Panel principal con resumen del estado
+4. Sección de Reportes con indicadores clave
+5. Diseño adaptable a computadora y celular
+
+
+FUERA DE ALCANCE (POR AHORA)
+----------------------------
+- App móvil nativa
+- Pagos o facturación
+- Integraciones externas complejas (CRM, etc.)
+
+
+ARQUITECTURA (SIMPLE)
+---------------------
+[ Usuario ]
+     |
+     v
+[ Pantalla web (Frontend) ]
+     |
+     |  se comunica por internet (JSON)
+     v
+[ Servidor / API (Backend) ]
+     |
+     v
+[ Base de datos MySQL ]
+
+
+En pocas palabras:
+- Lo que ve el usuario = Frontend
+- La lógica y seguridad = Backend
+- Donde se guarda la información = MySQL
+
+
+STACK (TECNOLOGÍAS)
+-------------------
+Frontend:  React + TypeScript + Material UI + Vite
+Backend:   Node.js + Express
+Base de datos: MySQL
+ORM:       Prisma
+Auth:      Login con token (JWT)
+
+
+IDENTIDAD VISUAL / COLORES
+--------------------------
+Concepto: laboratorio moderno, oscuro, limpio.
+
+Fondo general:     Negro / carbón        #060807
+Panel lateral:     Verde muy oscuro      #0A100E
+Cards / tablas:    Blanco                #FFFFFF
+Texto sobre oscuro: Casi blanco          #EAF3EE
+Texto secundario:  Gris verdoso          #9BB5A8
+Color principal:   Verde laboratorio     #1FA87A
+Acento brillante:  Verde menta           #7CFFB2
+Secundario:        Cian técnico          #2BB8D6
+Alertas:           Ámbar / coral         #F0B429 / #F07167
+
+Tipografía:
+- Títulos: DM Sans
+- Texto:   IBM Plex Sans
+
+
+ESTILO DE INTERFAZ
+------------------
+- Fondo oscuro + tarjetas blancas (alto contraste)
+- Menú lateral desplegable (hamburguesa)
+- Botones y elementos clickeables más redondeados
+- Cards solo informativas con esquinas más rectas
+- Responsive: funciona en móvil y escritorio
+
+
+FLUJO DEL USUARIO (ALTO NIVEL)
+------------------------------
+1. Entra a la app
+2. Inicia sesión o se registra
+3. Ve el panel con un resumen
+4. Gestiona labs, equipo, reservas o incidencias
+5. Consulta reportes para apoyar decisiones
+
+
+PANTALLAS PRINCIPALES
+---------------------
+- Login / Registro
+- Panel
+- Laboratorios
+- Equipos
+- Reservas
+- Asignaciones
+- Materias
+- Incidencias
+- Usuarios
+- Reportes
+
+
+MENSAJE CORTO PARA PRESENTAR (30 SEGUNDOS)
+------------------------------------------
+NexoLab es una plataforma web para conectar y organizar el uso de
+laboratorios universitarios. Permite reservar espacios, controlar equipo,
+dar seguimiento a incidencias y consultar reportes claros para decidir mejor.
+
+
+DATOS DEL EQUIPO (COMPLETAR)
+----------------------------
+Ver archivo: Equipo-KickOff.txt
+
+
+NOTAS PARA CANVA
+----------------
+- Usar fondo oscuro y acentos verde menta
+- Destacar el nombre NexoLab como marca
+- 1 idea por sección (evitar saturar slides)
+- Incluir mockups de Login, Panel y Reportes
+
+================================================================================
+Fin — Kick-off NexoLab
+================================================================================

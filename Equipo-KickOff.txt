@@ -1,0 +1,25 @@
+================================================================================
+EQUIPO — KICK-OFF NEXOLAB
+Completar con los datos reales del equipo antes de subir el ZIP.
+================================================================================
+
+Proyecto: NexoLab
+Repositorio GitHub: https://github.com/FFianquetto/ProWebII_NexoLab
+
+Integrante 1
+  Nombre:
+  Matrícula:
+
+Integrante 2
+  Nombre:
+  Matrícula:
+
+Integrante 3
+  Nombre:
+  Matrícula:
+
+Integrante 4
+  Nombre:
+  Matrícula:
+
+================================================================================

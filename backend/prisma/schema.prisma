@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum LabStatus {
+  AVAILABLE
+  MAINTENANCE
+  CLOSED
+}
+
+enum EquipmentStatus {
+  AVAILABLE
+  IN_USE
+  BROKEN
+  MAINTENANCE
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum IncidentStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model User {
+  id           Int           @id @default(autoincrement())
+  email        String        @unique @db.VarChar(150)
+  passwordHash String        @map("password_hash") @db.VarChar(255)
+  fullName     String        @map("full_name") @db.VarChar(150)
+  role         Role          @default(STUDENT)
+  studentId    String?       @map("student_id") @db.VarChar(50)
+  phone        String?       @db.VarChar(30)
+  isActive     Boolean       @default(true) @map("is_active")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  reservations Reservation[]
+  incidents    Incident[]    @relation("ReportedBy")
+
+  @@map("users")
+}
+
+model Subject {
+  id           Int           @id @default(autoincrement())
+  code         String        @unique @db.VarChar(30)
+  name         String        @db.VarChar(150)
+  description  String?       @db.Text
+  credits      Int           @default(0)
+  isActive     Boolean       @default(true) @map("is_active")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  reservations Reservation[]
+
+  @@map("subjects")
+}
+
+model Laboratory {
+  id           Int           @id @default(autoincrement())
+  code         String        @unique @db.VarChar(30)
+  name         String        @db.VarChar(150)
+  building     String        @db.VarChar(100)
+  floor        String?       @db.VarChar(20)
+  capacity     Int
+  status       LabStatus     @default(AVAILABLE)
+  description  String?       @db.Text
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  equipment    Equipment[]
+  reservations Reservation[]
+  incidents    Incident[]
+
+  @@map("laboratories")
+}
+
+model Equipment {
+  id                   Int                   @id @default(autoincrement())
+  inventoryCode        String                @unique @map("inventory_code") @db.VarChar(50)
+  name                 String                @db.VarChar(150)
+  category             String                @db.VarChar(80)
+  status               EquipmentStatus       @default(AVAILABLE)
+  laboratoryId         Int                   @map("laboratory_id")
+  notes                String?               @db.Text
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+  laboratory           Laboratory            @relation(fields: [laboratoryId], references: [id], onDelete: Restrict)
+  reservationEquipment ReservationEquipment[]
+  incidents            Incident[]
+
+  @@index([laboratoryId])
+  @@map("equipment")
+}
+
+model Reservation {
+  id                   Int                   @id @default(autoincrement())
+  userId               Int                   @map("user_id")
+  laboratoryId         Int                   @map("laboratory_id")
+  subjectId            Int?                  @map("subject_id")
+  title                String                @db.VarChar(150)
+  purpose              String?               @db.Text
+  startsAt             DateTime              @map("starts_at")
+  endsAt               DateTime              @map("ends_at")
+  attendees            Int                   @default(1)
+  status               ReservationStatus     @default(PENDING)
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  laboratory           Laboratory            @relation(fields: [laboratoryId], references: [id], onDelete: Restrict)
+  subject              Subject?              @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  reservationEquipment ReservationEquipment[]
+
+  @@index([userId])
+  @@index([laboratoryId])
+  @@index([subjectId])
+  @@index([startsAt, endsAt])
+  @@map("reservations")
+}
+
+model ReservationEquipment {
+  id            Int         @id @default(autoincrement())
+  reservationId Int         @map("reservation_id")
+  equipmentId   Int         @map("equipment_id")
+  quantity      Int         @default(1)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  equipment     Equipment   @relation(fields: [equipmentId], references: [id], onDelete: Restrict)
+
+  @@unique([reservationId, equipmentId])
+  @@index([equipmentId])
+  @@map("reservation_equipment")
+}
+
+model Incident {
+  id           Int              @id @default(autoincrement())
+  title        String           @db.VarChar(150)
+  description  String           @db.Text
+  status       IncidentStatus   @default(OPEN)
+  severity     IncidentSeverity @default(MEDIUM)
+  laboratoryId Int?             @map("laboratory_id")
+  equipmentId  Int?             @map("equipment_id")
+  reportedById Int              @map("reported_by_id")
+  resolvedAt   DateTime?        @map("resolved_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  laboratory   Laboratory?      @relation(fields: [laboratoryId], references: [id], onDelete: SetNull)
+  equipment    Equipment?       @relation(fields: [equipmentId], references: [id], onDelete: SetNull)
+  reportedBy   User             @relation("ReportedBy", fields: [reportedById], references: [id], onDelete: Restrict)
+
+  @@index([laboratoryId])
+  @@index([equipmentId])
+  @@index([reportedById])
+  @@map("incidents")
+}
