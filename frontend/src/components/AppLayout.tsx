@@ -140,7 +140,7 @@ export default function AppLayout() {
               color: tokens.textOnDarkMuted,
               '& .MuiListItemIcon-root': { color: 'inherit', minWidth: 42 },
               '&.Mui-selected': {
-                bgcolor: 'rgba(31, 168, 122, 0.16)',
+                bgcolor: 'rgba(36, 180, 130, 0.16)',
                 color: tokens.primaryStrong,
                 '& .MuiListItemIcon-root': { color: tokens.primaryStrong },
               },
