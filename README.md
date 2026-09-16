@@ -132,3 +132,9 @@ Si tu terminal **ya está** en `...\ProW\frontend`, solo corre `npm run dev`
 | Docente | docente@nexolab.edu | Teacher123! |
 | Alumno | alumno@nexolab.edu | Student123! |
 
+### Nombres
+
+Jorge Damian Felizardo Hernandez 2132920
+Daira Yamile Aguilar Castro 2056579
+Fernando adolfo cancino cuenca 2132913
+Mia Lourdes Garcia Elias 2071837
