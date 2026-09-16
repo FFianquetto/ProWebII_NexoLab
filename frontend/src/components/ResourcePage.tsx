@@ -37,7 +37,7 @@ export interface Column<T> {
   primary?: boolean;
 }
 
-interface ResourcePageProps<T extends { id: number }> {
+interface ResourcePageProps<T extends { id: string }> {
   title: string;
   subtitle?: string;
   endpoint: string;
@@ -45,14 +45,17 @@ interface ResourcePageProps<T extends { id: number }> {
   renderForm: (values: Partial<T>, setValues: (v: Partial<T>) => void, mode: 'create' | 'edit') => ReactNode;
   emptyForm: Partial<T>;
   toPayload?: (values: Partial<T>, mode: 'create' | 'edit') => unknown;
+  canCreate?: boolean;
+  canEdit?: (row: T) => boolean;
+  canDelete?: (row: T) => boolean;
 }
 
-function cellValue<T extends { id: number }>(row: T, col: Column<T>) {
+function cellValue<T extends { id: string }>(row: T, col: Column<T>) {
   if (col.render) return col.render(row);
   return String((row as unknown as Record<string, unknown>)[col.key] ?? '');
 }
 
-export default function ResourcePage<T extends { id: number }>({
+export default function ResourcePage<T extends { id: string }>({
   title,
   subtitle,
   endpoint,
@@ -60,6 +63,9 @@ export default function ResourcePage<T extends { id: number }>({
   renderForm,
   emptyForm,
   toPayload,
+  canCreate = true,
+  canEdit = () => true,
+  canDelete = () => true,
 }: ResourcePageProps<T>) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -68,7 +74,7 @@ export default function ResourcePage<T extends { id: number }>({
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<'create' | 'edit'>('create');
   const [values, setValues] = useState<Partial<T>>(emptyForm);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -120,7 +126,7 @@ export default function ResourcePage<T extends { id: number }>({
     }
   };
 
-  const remove = async (id: number) => {
+  const remove = async (id: string) => {
     if (!window.confirm('¿Eliminar este registro?')) return;
     try {
       setError('');
@@ -156,7 +162,7 @@ export default function ResourcePage<T extends { id: number }>({
             </Typography>
           )}
         </Box>
-        {!isMobile && (
+        {!isMobile && canCreate && (
           <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
             Nuevo
           </Button>
@@ -207,25 +213,29 @@ export default function ResourcePage<T extends { id: number }>({
                 </Stack>
               </CardContent>
               <CardActions sx={{ justifyContent: 'flex-end', px: 1.5, pb: 1.5, gap: 0.5 }}>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<EditIcon />}
-                  onClick={() => openEdit(row)}
-                  sx={{ borderRadius: `${tokens.radiusInteractive}px` }}
-                >
-                  Editar
-                </Button>
-                <Button
-                  size="small"
-                  color="error"
-                  variant="outlined"
-                  startIcon={<DeleteIcon />}
-                  onClick={() => remove(row.id)}
-                  sx={{ borderRadius: `${tokens.radiusInteractive}px` }}
-                >
-                  Eliminar
-                </Button>
+                {canEdit(row) && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<EditIcon />}
+                    onClick={() => openEdit(row)}
+                    sx={{ borderRadius: `${tokens.radiusInteractive}px` }}
+                  >
+                    Editar
+                  </Button>
+                )}
+                {canDelete(row) && (
+                  <Button
+                    size="small"
+                    color="error"
+                    variant="outlined"
+                    startIcon={<DeleteIcon />}
+                    onClick={() => remove(row.id)}
+                    sx={{ borderRadius: `${tokens.radiusInteractive}px` }}
+                  >
+                    Eliminar
+                  </Button>
+                )}
               </CardActions>
             </Card>
           ))}
@@ -255,12 +265,16 @@ export default function ResourcePage<T extends { id: number }>({
                     <TableCell key={col.key}>{cellValue(row, col)}</TableCell>
                   ))}
                   <TableCell align="right">
-                    <IconButton aria-label="Editar" onClick={() => openEdit(row)}>
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton aria-label="Eliminar" color="error" onClick={() => remove(row.id)}>
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
+                    {canEdit(row) && (
+                      <IconButton aria-label="Editar" onClick={() => openEdit(row)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    )}
+                    {canDelete(row) && (
+                      <IconButton aria-label="Eliminar" color="error" onClick={() => remove(row.id)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -278,7 +292,7 @@ export default function ResourcePage<T extends { id: number }>({
         </InfoCard>
       )}
 
-      {isMobile && (
+      {isMobile && canCreate && (
         <Fab
           color="primary"
           aria-label="Nuevo"

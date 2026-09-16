@@ -11,7 +11,7 @@ function publicUser(user) {
 
 export async function list(req, res, next) {
   try {
-    const users = await prisma.user.findMany({ orderBy: { id: 'asc' } });
+    const users = await prisma.user.findMany({ orderBy: { fullName: 'asc' } });
     return ok(res, users.map(publicUser));
   } catch (error) {
     return next(error);
@@ -20,7 +20,7 @@ export async function list(req, res, next) {
 
 export async function getById(req, res, next) {
   try {
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) return fail(res, 'Usuario no encontrado', 404);
     return ok(res, publicUser(user));
@@ -33,6 +33,9 @@ export async function create(req, res, next) {
   try {
     const { email, password, fullName, role, studentId, phone } = req.body;
     if (!password) return fail(res, 'La contraseña es obligatoria', 422);
+
+    const exists = await prisma.user.findUnique({ where: { email } });
+    if (exists) return fail(res, 'El correo ya está registrado', 409);
 
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
@@ -54,7 +57,7 @@ export async function create(req, res, next) {
 
 export async function update(req, res, next) {
   try {
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
     const data = { ...req.body };
     if (data.password) {
       data.passwordHash = await bcrypt.hash(data.password, 10);
@@ -70,7 +73,7 @@ export async function update(req, res, next) {
 
 export async function remove(req, res, next) {
   try {
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
     if (id === req.user.id) return fail(res, 'No puedes eliminar tu propia cuenta', 400);
 
     const reservations = await prisma.reservation.count({ where: { userId: id } });

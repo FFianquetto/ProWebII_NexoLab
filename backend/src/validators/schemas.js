@@ -1,21 +1,23 @@
 import { z } from 'zod';
 
+const objectId = z.string().trim().min(1, 'Identificador requerido');
+
 export const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8).max(72),
-  fullName: z.string().min(2).max(150),
+  email: z.string().email('Correo electrónico no válido'),
+  password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').max(72),
+  fullName: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(150),
   role: z.enum(['ADMIN', 'TEACHER', 'STUDENT']).optional(),
   studentId: z.string().max(50).optional().nullable(),
   phone: z.string().max(30).optional().nullable(),
 });
 
 export const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
+  email: z.string().email('Correo electrónico no válido'),
+  password: z.string().min(1, 'La contraseña es requerida'),
 });
 
 export const userUpdateSchema = z.object({
-  email: z.string().email().optional(),
+  email: z.string().email('Correo electrónico no válido').optional(),
   fullName: z.string().min(2).max(150).optional(),
   role: z.enum(['ADMIN', 'TEACHER', 'STUDENT']).optional(),
   studentId: z.string().max(50).optional().nullable(),
@@ -47,24 +49,24 @@ export const equipmentSchema = z.object({
   name: z.string().min(2).max(150),
   category: z.string().min(2).max(80),
   status: z.enum(['AVAILABLE', 'IN_USE', 'BROKEN', 'MAINTENANCE']).optional(),
-  laboratoryId: z.number().int().positive(),
+  laboratoryId: objectId,
   notes: z.string().optional().nullable(),
 });
 
 export const reservationBaseSchema = z.object({
-  userId: z.number().int().positive(),
-  laboratoryId: z.number().int().positive(),
-  subjectId: z.number().int().positive().optional().nullable(),
+  userId: objectId,
+  laboratoryId: objectId,
+  subjectId: objectId.optional().nullable(),
   title: z.string().min(2).max(150),
   purpose: z.string().optional().nullable(),
   startsAt: z.coerce.date(),
   endsAt: z.coerce.date(),
-  attendees: z.number().int().min(1).max(500).optional(),
+  attendees: z.number().int().min(1, 'Debe haber al menos 1 asistente').max(500).default(1),
   status: z.enum(['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'NO_SHOW']).optional(),
   equipmentIds: z
     .array(
       z.object({
-        equipmentId: z.number().int().positive(),
+        equipmentId: objectId,
         quantity: z.number().int().min(1).default(1),
       }),
     )
@@ -79,8 +81,8 @@ export const reservationSchema = reservationBaseSchema.refine(
 export const reservationUpdateSchema = reservationBaseSchema.partial();
 
 export const reservationEquipmentSchema = z.object({
-  reservationId: z.number().int().positive(),
-  equipmentId: z.number().int().positive(),
+  reservationId: objectId,
+  equipmentId: objectId,
   quantity: z.number().int().min(1).default(1),
 });
 
@@ -89,8 +91,16 @@ export const incidentSchema = z.object({
   description: z.string().min(5),
   status: z.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']).optional(),
   severity: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
-  laboratoryId: z.number().int().positive().optional().nullable(),
-  equipmentId: z.number().int().positive().optional().nullable(),
-  reportedById: z.number().int().positive(),
+  laboratoryId: objectId.optional().nullable(),
+  equipmentId: objectId.optional().nullable(),
+  reportedById: objectId,
   resolvedAt: z.coerce.date().optional().nullable(),
+});
+
+export const reportSchema = z.object({
+  title: z.string().min(3, 'El título debe tener al menos 3 caracteres').max(150),
+  type: z.enum(['GENERAL', 'INCIDENTS', 'OCCUPANCY', 'EQUIPMENT']).optional().default('GENERAL'),
+  summary: z.string().min(5, 'El resumen debe tener al menos 5 caracteres'),
+  notes: z.string().optional().nullable(),
+  laboratoryId: objectId.optional().nullable(),
 });

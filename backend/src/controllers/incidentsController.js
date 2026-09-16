@@ -5,7 +5,7 @@ import { logger } from '../utils/logger.js';
 const include = {
   laboratory: { select: { id: true, code: true, name: true } },
   equipment: { select: { id: true, inventoryCode: true, name: true } },
-  reportedBy: { select: { id: true, fullName: true, email: true } },
+  reportedBy: { select: { id: true, fullName: true, email: true, role: true } },
 };
 
 export async function list(_req, res, next) {
@@ -22,7 +22,7 @@ export async function list(_req, res, next) {
 
 export async function getById(req, res, next) {
   try {
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
     const item = await prisma.incident.findUnique({ where: { id }, include });
     if (!item) return fail(res, 'Incidencia no encontrada', 404);
     return ok(res, item);
@@ -60,7 +60,7 @@ export async function create(req, res, next) {
 
 export async function update(req, res, next) {
   try {
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
     const data = { ...req.body };
     if (['RESOLVED', 'CLOSED'].includes(data.status) && data.resolvedAt === undefined) {
       data.resolvedAt = new Date();
@@ -75,7 +75,7 @@ export async function update(req, res, next) {
 
 export async function remove(req, res, next) {
   try {
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
     await prisma.incident.delete({ where: { id } });
     logger.info('Incidencia eliminada', { id, by: req.user?.id });
     return ok(res, { id, deleted: true });

@@ -13,7 +13,7 @@ export async function list(_req, res, next) {
 
 export async function getById(req, res, next) {
   try {
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
     const item = await prisma.subject.findUnique({ where: { id } });
     if (!item) return fail(res, 'Materia no encontrada', 404);
     return ok(res, item);
@@ -34,7 +34,7 @@ export async function create(req, res, next) {
 
 export async function update(req, res, next) {
   try {
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
     const item = await prisma.subject.update({ where: { id }, data: req.body });
     logger.info('Materia actualizada', { id, by: req.user?.id });
     return ok(res, item);
@@ -45,7 +45,7 @@ export async function update(req, res, next) {
 
 export async function remove(req, res, next) {
   try {
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
     const linked = await prisma.reservation.count({ where: { subjectId: id } });
     if (linked > 0) {
       await prisma.subject.update({ where: { id }, data: { isActive: false } });

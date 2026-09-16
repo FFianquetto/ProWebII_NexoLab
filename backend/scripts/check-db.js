@@ -4,9 +4,12 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 try {
-  await prisma.$queryRaw`SELECT 1 AS ok`;
-  const tables = await prisma.$queryRaw`SHOW TABLES`;
-  console.log(`DB_OK tables=${tables.length}`);
+  // Comprobación de conexión con MongoDB vía Prisma
+  const [labsCount, usersCount] = await Promise.all([
+    prisma.laboratory.count(),
+    prisma.user.count(),
+  ]);
+  console.log(`DB_OK mongodb=connected laboratories=${labsCount} users=${usersCount}`);
 } catch (error) {
   console.error('DB_ERR', error.message);
   process.exitCode = 1;

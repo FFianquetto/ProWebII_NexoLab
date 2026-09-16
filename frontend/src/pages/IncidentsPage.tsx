@@ -29,7 +29,7 @@ export default function IncidentsPage() {
   return (
     <ResourcePage<Incident>
       title="Incidencias"
-      subtitle="Reportes de fallas y mantenimiento."
+      subtitle="Reportes de fallas y mantenimiento en laboratorios o equipo."
       endpoint="/incidents"
       emptyForm={{
         title: '',
@@ -38,7 +38,7 @@ export default function IncidentsPage() {
         severity: 'MEDIUM',
         laboratoryId: null,
         equipmentId: null,
-        reportedById: user?.id || 0,
+        reportedById: user?.id || '',
       }}
       columns={[
         { key: 'title', label: 'Título', primary: true },
@@ -68,48 +68,93 @@ export default function IncidentsPage() {
         description: values.description,
         status: values.status,
         severity: values.severity,
-        laboratoryId: values.laboratoryId ? Number(values.laboratoryId) : null,
-        equipmentId: values.equipmentId ? Number(values.equipmentId) : null,
-        reportedById: Number(values.reportedById),
+        laboratoryId: values.laboratoryId ? String(values.laboratoryId) : null,
+        equipmentId: values.equipmentId ? String(values.equipmentId) : null,
+        reportedById: String(values.reportedById || user?.id),
       })}
       renderForm={(values, setValues) => (
         <>
-          <TextField label="Título" value={values.title || ''} onChange={(e) => setValues({ ...values, title: e.target.value })} required fullWidth />
-          <TextField label="Descripción" value={values.description || ''} onChange={(e) => setValues({ ...values, description: e.target.value })} required fullWidth multiline minRows={3} />
-          <TextField select label="Severidad" value={values.severity || 'MEDIUM'} onChange={(e) => setValues({ ...values, severity: e.target.value as Incident['severity'] })} fullWidth>
+          <TextField
+            label="Título"
+            value={values.title || ''}
+            onChange={(e) => setValues({ ...values, title: e.target.value })}
+            required
+            fullWidth
+          />
+          <TextField
+            label="Descripción del problema"
+            value={values.description || ''}
+            onChange={(e) => setValues({ ...values, description: e.target.value })}
+            required
+            fullWidth
+            multiline
+            minRows={3}
+          />
+          <TextField
+            select
+            label="Severidad"
+            value={values.severity || 'MEDIUM'}
+            onChange={(e) => setValues({ ...values, severity: e.target.value as Incident['severity'] })}
+            fullWidth
+          >
             {Object.entries(severityLabels).map(([value, label]) => (
               <MenuItem key={value} value={value}>
                 {label}
               </MenuItem>
             ))}
           </TextField>
-          <TextField select label="Estado" value={values.status || 'OPEN'} onChange={(e) => setValues({ ...values, status: e.target.value as Incident['status'] })} fullWidth>
+          <TextField
+            select
+            label="Estado"
+            value={values.status || 'OPEN'}
+            onChange={(e) => setValues({ ...values, status: e.target.value as Incident['status'] })}
+            fullWidth
+          >
             {Object.entries(incidentStatusLabels).map(([value, label]) => (
               <MenuItem key={value} value={value}>
                 {label}
               </MenuItem>
             ))}
           </TextField>
-          <TextField select label="Laboratorio" value={values.laboratoryId ?? ''} onChange={(e) => setValues({ ...values, laboratoryId: e.target.value ? Number(e.target.value) : null })} fullWidth>
+          <TextField
+            select
+            label="Laboratorio (opcional)"
+            value={values.laboratoryId ?? ''}
+            onChange={(e) => setValues({ ...values, laboratoryId: e.target.value ? e.target.value : null })}
+            fullWidth
+          >
             <MenuItem value="">Ninguno</MenuItem>
             {labs.map((lab) => (
               <MenuItem key={lab.id} value={lab.id}>
-                {lab.code}
+                {lab.code} - {lab.name}
               </MenuItem>
             ))}
           </TextField>
-          <TextField select label="Equipo" value={values.equipmentId ?? ''} onChange={(e) => setValues({ ...values, equipmentId: e.target.value ? Number(e.target.value) : null })} fullWidth>
+          <TextField
+            select
+            label="Equipo afectado (opcional)"
+            value={values.equipmentId ?? ''}
+            onChange={(e) => setValues({ ...values, equipmentId: e.target.value ? e.target.value : null })}
+            fullWidth
+          >
             <MenuItem value="">Ninguno</MenuItem>
             {equipment.map((eq) => (
               <MenuItem key={eq.id} value={eq.id}>
-                {eq.inventoryCode}
+                {eq.inventoryCode} - {eq.name}
               </MenuItem>
             ))}
           </TextField>
-          <TextField select label="Reportado por" value={values.reportedById || ''} onChange={(e) => setValues({ ...values, reportedById: Number(e.target.value) })} required fullWidth>
+          <TextField
+            select
+            label="Reportado por"
+            value={values.reportedById || ''}
+            onChange={(e) => setValues({ ...values, reportedById: e.target.value })}
+            required
+            fullWidth
+          >
             {users.map((u) => (
               <MenuItem key={u.id} value={u.id}>
-                {u.fullName}
+                {u.fullName} ({u.email})
               </MenuItem>
             ))}
           </TextField>

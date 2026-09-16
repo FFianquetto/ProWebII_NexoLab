@@ -10,7 +10,7 @@ const include = {
 export async function list(_req, res, next) {
   try {
     const items = await prisma.reservationEquipment.findMany({
-      orderBy: { id: 'asc' },
+      orderBy: { createdAt: 'desc' },
       include,
     });
     return ok(res, items);
@@ -21,7 +21,7 @@ export async function list(_req, res, next) {
 
 export async function getById(req, res, next) {
   try {
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
     const item = await prisma.reservationEquipment.findUnique({ where: { id }, include });
     if (!item) return fail(res, 'Asignación no encontrada', 404);
     return ok(res, item);
@@ -52,7 +52,7 @@ export async function create(req, res, next) {
 
 export async function update(req, res, next) {
   try {
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
     const item = await prisma.reservationEquipment.update({
       where: { id },
       data: req.body,
@@ -67,7 +67,7 @@ export async function update(req, res, next) {
 
 export async function remove(req, res, next) {
   try {
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
     await prisma.reservationEquipment.delete({ where: { id } });
     logger.info('Asignación eliminada', { id, by: req.user?.id });
     return ok(res, { id, deleted: true });

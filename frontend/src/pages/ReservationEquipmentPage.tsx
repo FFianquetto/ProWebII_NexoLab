@@ -23,8 +23,8 @@ export default function ReservationEquipmentPage() {
       subtitle="Equipo asignado a cada reserva."
       endpoint="/reservation-equipment"
       emptyForm={{
-        reservationId: reservations[0]?.id || 0,
-        equipmentId: equipment[0]?.id || 0,
+        reservationId: reservations[0]?.id || '',
+        equipmentId: equipment[0]?.id || '',
         quantity: 1,
       }}
       columns={[
@@ -42,27 +42,47 @@ export default function ReservationEquipmentPage() {
         { key: 'quantity', label: 'Cantidad' },
       ]}
       toPayload={(values) => ({
-        reservationId: Number(values.reservationId),
-        equipmentId: Number(values.equipmentId),
+        reservationId: String(values.reservationId),
+        equipmentId: String(values.equipmentId),
         quantity: Number(values.quantity || 1),
       })}
       renderForm={(values, setValues) => (
         <>
-          <TextField select label="Reserva" value={values.reservationId || ''} onChange={(e) => setValues({ ...values, reservationId: Number(e.target.value) })} required fullWidth>
+          <TextField
+            select
+            label="Reserva"
+            value={values.reservationId || ''}
+            onChange={(e) => setValues({ ...values, reservationId: e.target.value })}
+            required
+            fullWidth
+          >
             {reservations.map((r) => (
               <MenuItem key={r.id} value={r.id}>
-                #{r.id} — {r.title}
+                {r.title} ({new Date(r.startsAt).toLocaleDateString('es-MX')})
               </MenuItem>
             ))}
           </TextField>
-          <TextField select label="Equipo" value={values.equipmentId || ''} onChange={(e) => setValues({ ...values, equipmentId: Number(e.target.value) })} required fullWidth>
+          <TextField
+            select
+            label="Equipo"
+            value={values.equipmentId || ''}
+            onChange={(e) => setValues({ ...values, equipmentId: e.target.value })}
+            required
+            fullWidth
+          >
             {equipment.map((eq) => (
               <MenuItem key={eq.id} value={eq.id}>
                 {eq.inventoryCode} — {eq.name}
               </MenuItem>
             ))}
           </TextField>
-          <TextField label="Cantidad" type="number" value={values.quantity ?? 1} onChange={(e) => setValues({ ...values, quantity: Number(e.target.value) })} fullWidth />
+          <TextField
+            label="Cantidad"
+            type="number"
+            value={values.quantity ?? 1}
+            onChange={(e) => setValues({ ...values, quantity: Number(e.target.value) })}
+            fullWidth
+          />
         </>
       )}
     />

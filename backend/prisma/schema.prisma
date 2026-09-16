@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
@@ -49,27 +49,28 @@ enum IncidentSeverity {
 }
 
 model User {
-  id           Int           @id @default(autoincrement())
-  email        String        @unique @db.VarChar(150)
-  passwordHash String        @map("password_hash") @db.VarChar(255)
-  fullName     String        @map("full_name") @db.VarChar(150)
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  email        String        @unique
+  passwordHash String        @map("password_hash")
+  fullName     String        @map("full_name")
   role         Role          @default(STUDENT)
-  studentId    String?       @map("student_id") @db.VarChar(50)
-  phone        String?       @db.VarChar(30)
+  studentId    String?       @map("student_id")
+  phone        String?
   isActive     Boolean       @default(true) @map("is_active")
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
   reservations Reservation[]
   incidents    Incident[]    @relation("ReportedBy")
+  reports      Report[]      @relation("ReportAuthor")
 
   @@map("users")
 }
 
 model Subject {
-  id           Int           @id @default(autoincrement())
-  code         String        @unique @db.VarChar(30)
-  name         String        @db.VarChar(150)
-  description  String?       @db.Text
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  code         String        @unique
+  name         String
+  description  String?
   credits      Int           @default(0)
   isActive     Boolean       @default(true) @map("is_active")
   createdAt    DateTime      @default(now()) @map("created_at")
@@ -80,34 +81,35 @@ model Subject {
 }
 
 model Laboratory {
-  id           Int           @id @default(autoincrement())
-  code         String        @unique @db.VarChar(30)
-  name         String        @db.VarChar(150)
-  building     String        @db.VarChar(100)
-  floor        String?       @db.VarChar(20)
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  code         String        @unique
+  name         String
+  building     String
+  floor        String?
   capacity     Int
   status       LabStatus     @default(AVAILABLE)
-  description  String?       @db.Text
+  description  String?
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
   equipment    Equipment[]
   reservations Reservation[]
   incidents    Incident[]
+  reports      Report[]
 
   @@map("laboratories")
 }
 
 model Equipment {
-  id                   Int                   @id @default(autoincrement())
-  inventoryCode        String                @unique @map("inventory_code") @db.VarChar(50)
-  name                 String                @db.VarChar(150)
-  category             String                @db.VarChar(80)
-  status               EquipmentStatus       @default(AVAILABLE)
-  laboratoryId         Int                   @map("laboratory_id")
-  notes                String?               @db.Text
-  createdAt            DateTime              @default(now()) @map("created_at")
-  updatedAt            DateTime              @updatedAt @map("updated_at")
-  laboratory           Laboratory            @relation(fields: [laboratoryId], references: [id], onDelete: Restrict)
+  id                   String                 @id @default(auto()) @map("_id") @db.ObjectId
+  inventoryCode        String                 @unique @map("inventory_code")
+  name                 String
+  category             String
+  status               EquipmentStatus        @default(AVAILABLE)
+  laboratoryId         String                 @map("laboratory_id") @db.ObjectId
+  notes                String?
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+  laboratory           Laboratory             @relation(fields: [laboratoryId], references: [id])
   reservationEquipment ReservationEquipment[]
   incidents            Incident[]
 
@@ -116,38 +118,37 @@ model Equipment {
 }
 
 model Reservation {
-  id                   Int                   @id @default(autoincrement())
-  userId               Int                   @map("user_id")
-  laboratoryId         Int                   @map("laboratory_id")
-  subjectId            Int?                  @map("subject_id")
-  title                String                @db.VarChar(150)
-  purpose              String?               @db.Text
-  startsAt             DateTime              @map("starts_at")
-  endsAt               DateTime              @map("ends_at")
-  attendees            Int                   @default(1)
-  status               ReservationStatus     @default(PENDING)
-  createdAt            DateTime              @default(now()) @map("created_at")
-  updatedAt            DateTime              @updatedAt @map("updated_at")
-  user                 User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
-  laboratory           Laboratory            @relation(fields: [laboratoryId], references: [id], onDelete: Restrict)
-  subject              Subject?              @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  id                   String                 @id @default(auto()) @map("_id") @db.ObjectId
+  userId               String                 @map("user_id") @db.ObjectId
+  laboratoryId         String                 @map("laboratory_id") @db.ObjectId
+  subjectId            String?                @map("subject_id") @db.ObjectId
+  title                String
+  purpose              String?
+  startsAt             DateTime               @map("starts_at")
+  endsAt               DateTime               @map("ends_at")
+  attendees            Int                    @default(1)
+  status               ReservationStatus      @default(PENDING)
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+  user                 User                   @relation(fields: [userId], references: [id])
+  laboratory           Laboratory             @relation(fields: [laboratoryId], references: [id])
+  subject              Subject?               @relation(fields: [subjectId], references: [id])
   reservationEquipment ReservationEquipment[]
 
   @@index([userId])
   @@index([laboratoryId])
   @@index([subjectId])
-  @@index([startsAt, endsAt])
   @@map("reservations")
 }
 
 model ReservationEquipment {
-  id            Int         @id @default(autoincrement())
-  reservationId Int         @map("reservation_id")
-  equipmentId   Int         @map("equipment_id")
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  reservationId String      @map("reservation_id") @db.ObjectId
+  equipmentId   String      @map("equipment_id") @db.ObjectId
   quantity      Int         @default(1)
   createdAt     DateTime    @default(now()) @map("created_at")
   reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
-  equipment     Equipment   @relation(fields: [equipmentId], references: [id], onDelete: Restrict)
+  equipment     Equipment   @relation(fields: [equipmentId], references: [id])
 
   @@unique([reservationId, equipmentId])
   @@index([equipmentId])
@@ -155,23 +156,41 @@ model ReservationEquipment {
 }
 
 model Incident {
-  id           Int              @id @default(autoincrement())
-  title        String           @db.VarChar(150)
-  description  String           @db.Text
+  id           String           @id @default(auto()) @map("_id") @db.ObjectId
+  title        String
+  description  String
   status       IncidentStatus   @default(OPEN)
   severity     IncidentSeverity @default(MEDIUM)
-  laboratoryId Int?             @map("laboratory_id")
-  equipmentId  Int?             @map("equipment_id")
-  reportedById Int              @map("reported_by_id")
+  laboratoryId String?          @map("laboratory_id") @db.ObjectId
+  equipmentId  String?          @map("equipment_id") @db.ObjectId
+  reportedById String           @map("reported_by_id") @db.ObjectId
   resolvedAt   DateTime?        @map("resolved_at")
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @updatedAt @map("updated_at")
-  laboratory   Laboratory?      @relation(fields: [laboratoryId], references: [id], onDelete: SetNull)
-  equipment    Equipment?       @relation(fields: [equipmentId], references: [id], onDelete: SetNull)
-  reportedBy   User             @relation("ReportedBy", fields: [reportedById], references: [id], onDelete: Restrict)
+  laboratory   Laboratory?      @relation(fields: [laboratoryId], references: [id])
+  equipment    Equipment?       @relation(fields: [equipmentId], references: [id])
+  reportedBy   User             @relation("ReportedBy", fields: [reportedById], references: [id])
 
   @@index([laboratoryId])
   @@index([equipmentId])
   @@index([reportedById])
   @@map("incidents")
+}
+
+model Report {
+  id           String      @id @default(auto()) @map("_id") @db.ObjectId
+  title        String
+  type         String      @default("GENERAL") // GENERAL | INCIDENTS | OCCUPANCY | EQUIPMENT
+  summary      String
+  notes        String?
+  laboratoryId String?     @map("laboratory_id") @db.ObjectId
+  createdById  String      @map("created_by_id") @db.ObjectId
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  laboratory   Laboratory? @relation(fields: [laboratoryId], references: [id])
+  createdBy    User        @relation("ReportAuthor", fields: [createdById], references: [id])
+
+  @@index([laboratoryId])
+  @@index([createdById])
+  @@map("reports")
 }

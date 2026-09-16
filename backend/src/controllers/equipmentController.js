@@ -16,7 +16,7 @@ export async function list(_req, res, next) {
 
 export async function getById(req, res, next) {
   try {
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
     const item = await prisma.equipment.findUnique({
       where: { id },
       include: { laboratory: true },
@@ -33,7 +33,10 @@ export async function create(req, res, next) {
     const lab = await prisma.laboratory.findUnique({ where: { id: req.body.laboratoryId } });
     if (!lab) return fail(res, 'El laboratorio indicado no existe', 400);
 
-    const item = await prisma.equipment.create({ data: req.body });
+    const item = await prisma.equipment.create({
+      data: req.body,
+      include: { laboratory: { select: { id: true, code: true, name: true } } },
+    });
     logger.info('Equipo creado', { id: item.id, by: req.user?.id });
     return ok(res, item, 201);
   } catch (error) {
@@ -43,12 +46,16 @@ export async function create(req, res, next) {
 
 export async function update(req, res, next) {
   try {
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
     if (req.body.laboratoryId) {
       const lab = await prisma.laboratory.findUnique({ where: { id: req.body.laboratoryId } });
       if (!lab) return fail(res, 'El laboratorio indicado no existe', 400);
     }
-    const item = await prisma.equipment.update({ where: { id }, data: req.body });
+    const item = await prisma.equipment.update({
+      where: { id },
+      data: req.body,
+      include: { laboratory: { select: { id: true, code: true, name: true } } },
+    });
     logger.info('Equipo actualizado', { id, by: req.user?.id });
     return ok(res, item);
   } catch (error) {
@@ -58,7 +65,7 @@ export async function update(req, res, next) {
 
 export async function remove(req, res, next) {
   try {
-    const id = Number(req.params.id);
+    const id = String(req.params.id);
     const links = await prisma.reservationEquipment.count({ where: { equipmentId: id } });
     const incidents = await prisma.incident.count({ where: { equipmentId: id } });
     if (links > 0 || incidents > 0) {

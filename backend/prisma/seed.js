@@ -1,6 +1,14 @@
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
-import { PrismaClient, Role, LabStatus, EquipmentStatus, ReservationStatus, IncidentStatus, IncidentSeverity } from '@prisma/client';
+import {
+  PrismaClient,
+  Role,
+  LabStatus,
+  EquipmentStatus,
+  ReservationStatus,
+  IncidentStatus,
+  IncidentSeverity,
+} from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -132,6 +140,7 @@ async function main() {
     },
   });
 
+  // Reserva de docente (1 maestro puede apartar)
   const starts = new Date();
   starts.setDate(starts.getDate() + 1);
   starts.setHours(10, 0, 0, 0);
@@ -183,6 +192,7 @@ async function main() {
     });
   }
 
+  // Reserva de alumno (REGLA: al menos 10 solicitantes/asistentes)
   const webStarts = new Date();
   webStarts.setDate(webStarts.getDate() + 2);
   webStarts.setHours(14, 0, 0, 0);
@@ -199,10 +209,10 @@ async function main() {
         laboratoryId: labB.id,
         subjectId: subjectWeb.id,
         title: 'Sprint Frontend',
-        purpose: 'Sesión de integración React + API.',
+        purpose: 'Sesión grupal de integración React + API.',
         startsAt: webStarts,
         endsAt: webEnds,
-        attendees: 6,
+        attendees: 10, // Cumple regla de >= 10 solicitantes para alumnos
         status: ReservationStatus.PENDING,
         reservationEquipment: {
           create: [{ equipmentId: eq3.id, quantity: 1 }],
@@ -211,7 +221,40 @@ async function main() {
     });
   }
 
-  console.log('Seed NexoLab listo');
+  // Reportes oficiales generados por Maestro y Administrador (visibles por alumnos)
+  const reportTeacher = await prisma.report.findFirst({
+    where: { title: 'Informe de Prácticas Redes Q1' },
+  });
+  if (!reportTeacher) {
+    await prisma.report.create({
+      data: {
+        title: 'Informe de Prácticas Redes Q1',
+        type: 'OCCUPANCY',
+        summary: 'Alta demanda en el laboratorio de redes durante el primer bloque del semestre.',
+        notes: 'Se sugiere programar mantenimiento preventivo a los switches Catalyst.',
+        laboratoryId: labA.id,
+        createdById: teacher.id,
+      },
+    });
+  }
+
+  const reportAdmin = await prisma.report.findFirst({
+    where: { title: 'Auditoría de Infraestructura y Altas de Laboratorios' },
+  });
+  if (!reportAdmin) {
+    await prisma.report.create({
+      data: {
+        title: 'Auditoría de Infraestructura y Altas de Laboratorios',
+        type: 'GENERAL',
+        summary: 'Revisión semestral del estado operativo de los laboratorios y capacidad instalada.',
+        notes: 'Se mantiene supervisión estricta de altas/bajas de salas y control de ocupación.',
+        laboratoryId: labB.id,
+        createdById: admin.id,
+      },
+    });
+  }
+
+  console.log('Seed NexoLab MongoDB listo');
   console.log({ admin: admin.email, teacher: teacher.email, student: student.email, reservationId });
 }
 
