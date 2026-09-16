@@ -60,6 +60,10 @@ const hideScrollbarSx = {
   '&::-webkit-scrollbar': { display: 'none', width: 0, height: 0 },
 } as const;
 
+/**
+ * AppLayout component
+ * Contenedor principal de la aplicación. Maneja el sidebar, header y navegación móvil.
+ */
 export default function AppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -283,7 +287,7 @@ export default function AppLayout() {
         sx={{
           flexGrow: 1,
           p: { xs: 1.75, sm: 2.5, md: 3 },
-          pb: { xs: 11, md: 3 },
+          pb: { xs: 12, md: 4 }, // Ajuste sutil de padding bottom
           width: { md: isPermanent ? `calc(100% - ${drawerWidth}px)` : '100%' },
           maxWidth: '100%',
           minWidth: 0,
@@ -317,7 +321,7 @@ export default function AppLayout() {
             showLabels
             value={mobileTabValue}
             onChange={(_e, value) => navigate(value)}
-            sx={{ height: 68, bgcolor: 'transparent' }}
+            sx={{ height: 72, bgcolor: 'transparent' }} // Ajuste sutil de altura
           >
             {mobileTabs.map((tab) => (
               <BottomNavigationAction
