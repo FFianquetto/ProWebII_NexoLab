@@ -33,7 +33,6 @@ export interface Column<T> {
   key: string;
   label: string;
   render?: (row: T) => ReactNode;
-  /** En móvil se muestra en la cabecera de la tarjeta */
   primary?: boolean;
 }
 
@@ -157,7 +156,12 @@ export default function ResourcePage<T extends { id: number }>({
           )}
         </Box>
         {!isMobile && (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>
+          <Button 
+            variant="contained" 
+            disableElevation 
+            startIcon={<AddIcon />} 
+            onClick={openCreate}
+          >
             Nuevo
           </Button>
         )}
@@ -177,7 +181,7 @@ export default function ResourcePage<T extends { id: number }>({
               sx={{
                 borderRadius: `${tokens.radiusInteractive}px`,
                 transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-                '&:active': { transform: 'scale(0.99)' },
+                '&:active': { transform: 'scale(0.98)' }, 
               }}
             >
               <CardContent sx={{ pb: 1 }}>
@@ -283,7 +287,7 @@ export default function ResourcePage<T extends { id: number }>({
           color="primary"
           aria-label="Nuevo"
           onClick={openCreate}
-          sx={{ position: 'fixed', bottom: 88, right: 20, zIndex: 1200 }}
+          sx={{ position: 'fixed', bottom: 88, right: 24, zIndex: 1200 }} 
         >
           <AddIcon />
         </Fab>
@@ -306,7 +310,12 @@ export default function ResourcePage<T extends { id: number }>({
           <Button fullWidth={isMobile} onClick={() => setOpen(false)}>
             Cancelar
           </Button>
-          <Button fullWidth={isMobile} variant="contained" onClick={save}>
+          <Button 
+            fullWidth={isMobile} 
+            variant="contained" 
+            disableElevation 
+            onClick={save}
+          >
             Guardar
           </Button>
         </DialogActions>
