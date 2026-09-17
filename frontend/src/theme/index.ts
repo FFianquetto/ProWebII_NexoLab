@@ -62,6 +62,15 @@ const theme = createTheme({
           backgroundAttachment: 'fixed',
           fontSize: '16px',
         },
+        // Quita el azul feo del autofill del navegador
+        'input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus, textarea:-webkit-autofill, select:-webkit-autofill':
+          {
+            WebkitTextFillColor: `${tokens.textOnLight} !important`,
+            caretColor: tokens.textOnLight,
+            boxShadow: '0 0 0 1000px #FFFFFF inset !important',
+            WebkitBoxShadow: '0 0 0 1000px #FFFFFF inset !important',
+            transition: 'background-color 99999s ease-out 0s',
+          },
       },
     },
     MuiButton: {
@@ -134,7 +143,7 @@ const theme = createTheme({
           fontWeight: 700,
           fontSize: '0.9rem',
           backgroundColor: tokens.surfaceMuted,
-          color: tokens.textOnLightMuted,
+          color: tokens.textOnLight,
         },
       },
     },
@@ -147,11 +156,28 @@ const theme = createTheme({
       },
     },
     MuiChip: {
+      defaultProps: {
+        variant: 'filled',
+      },
       styleOverrides: {
         root: {
-          fontWeight: 600,
-          fontSize: '0.85rem',
+          fontWeight: 700,
+          fontSize: '0.82rem',
           borderRadius: tokens.radiusInteractive,
+        },
+        // Evita el gris claro por defecto de MUI sobre fondos blancos
+        filled: {
+          '&.MuiChip-colorDefault': {
+            backgroundColor: tokens.primaryDeep,
+            color: '#F2FBF6',
+          },
+        },
+        outlined: {
+          '&.MuiChip-colorDefault': {
+            borderColor: tokens.primary,
+            color: tokens.primaryDeep,
+            backgroundColor: 'transparent',
+          },
         },
       },
     },
@@ -169,6 +195,15 @@ const theme = createTheme({
           color: tokens.textOnDarkMuted,
           '&.Mui-selected': { color: tokens.primaryStrong },
           '& .MuiBottomNavigationAction-label': { fontSize: '0.8rem' },
+        },
+      },
+    },
+    MuiFormHelperText: {
+      styleOverrides: {
+        root: {
+          color: `${tokens.textOnLight} !important`,
+          fontWeight: 600,
+          opacity: 0.9,
         },
       },
     },

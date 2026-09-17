@@ -8,19 +8,42 @@ import LaboratoriesPage from './pages/LaboratoriesPage';
 import EquipmentPage from './pages/EquipmentPage';
 import ReservationsPage from './pages/ReservationsPage';
 import ReservationEquipmentPage from './pages/ReservationEquipmentPage';
-import SubjectsPage from './pages/SubjectsPage';
 import IncidentsPage from './pages/IncidentsPage';
 import UsersPage from './pages/UsersPage';
-import ReportsPage from './pages/ReportsPage';
 import { appRoutes, publicRoutes } from './constants/routes';
+import { canAccessRoute, homeForRole } from './constants/permissions';
+import type { Role } from './types';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { token } = useAuth();
+  const { token, ready } = useAuth();
+  if (!ready) return null;
   if (!token) return <Navigate to={publicRoutes.login} replace />;
   return children;
 }
 
+function RoleRoute({
+  allow,
+  children,
+}: {
+  allow: Role[];
+  children: React.ReactNode;
+}) {
+  const { user } = useAuth();
+  if (!user || !allow.includes(user.role)) {
+    return <Navigate to={homeForRole(user?.role)} replace />;
+  }
+  return children;
+}
+
+function HomeRedirect() {
+  const { user } = useAuth();
+  if (user?.role === 'ADMIN') return <DashboardPage />;
+  return <Navigate to={homeForRole(user?.role)} replace />;
+}
+
 export default function App() {
+  const { user } = useAuth();
+
   return (
     <Routes>
       <Route path={publicRoutes.login} element={<LoginPage />} />
@@ -33,17 +56,38 @@ export default function App() {
           </PrivateRoute>
         }
       >
-        <Route index element={<DashboardPage />} />
+        <Route index element={<HomeRedirect />} />
         <Route path="laboratories" element={<LaboratoriesPage />} />
         <Route path="equipment" element={<EquipmentPage />} />
         <Route path="reservations" element={<ReservationsPage />} />
-        <Route path="reservation-equipment" element={<ReservationEquipmentPage />} />
-        <Route path="subjects" element={<SubjectsPage />} />
+        <Route
+          path="reservation-equipment"
+          element={
+            <RoleRoute allow={['TEACHER', 'STUDENT']}>
+              <ReservationEquipmentPage />
+            </RoleRoute>
+          }
+        />
         <Route path="incidents" element={<IncidentsPage />} />
-        <Route path="users" element={<UsersPage />} />
-        <Route path="reports" element={<ReportsPage />} />
+        <Route
+          path="users"
+          element={
+            <RoleRoute allow={['ADMIN']}>
+              <UsersPage />
+            </RoleRoute>
+          }
+        />
+        <Route path="reports" element={<Navigate to={appRoutes.panel} replace />} />
       </Route>
-      <Route path="*" element={<Navigate to={appRoutes.panel} replace />} />
+      <Route
+        path="*"
+        element={
+          <Navigate
+            to={canAccessRoute(user?.role, appRoutes.panel) ? appRoutes.panel : homeForRole(user?.role)}
+            replace
+          />
+        }
+      />
     </Routes>
   );
 }

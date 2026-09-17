@@ -22,7 +22,7 @@
 │   │   ├── controllers/     # Lógica por recurso y reglas de negocio
 │   │   ├── middleware/      # Auth, roles (authorize), validación, errores
 │   │   ├── routes/          # Endpoints HTTP
-│   │   ├── validators/      # Zod (CREATE/UPDATE/REPORT)
+│   │   ├── validators/      # Zod (CREATE/UPDATE/DELETE params)
 │   │   ├── lib/             # Prisma client
 │   │   └── utils/           # Logger Winston y respuestas estándar
 │   └── logs/                # app.log / error.log
@@ -48,28 +48,23 @@
 | Reportes ≥ 4 consultas multi-colección / KPIs | `/reports` (Ocupación, Equipos más usados, Incidencias por severidad, Demanda horaria) |
 | CRUD GET/POST/PUT/DELETE por entidad | Sí |
 | Pantallas CRUD por entidad | Sí (con Material UI) |
-| Validaciones backend independientes | Zod (esquemas de creación y actualización) |
-| Logs de procesos/excepciones | Winston → `backend/logs/` |
+| Validaciones backend independientes | Zod en CREATE/UPDATE/DELETE (params) |
+| Logs de procesos/excepciones | Winston con pares inicio/fin → `backend/logs/` |
 | Login obligatorio + registro público | Sí |
 | Token en endpoints privados | JWT Bearer obligatorio |
-| UI Material Design system | Material UI (MUI v6) |
+| UI Material Design system | Material UI (MUI v7) |
 | Script de base de datos | `database/mongo-init.js` |
 
 ---
 
 ## Reglas de Negocio Implementadas
 
-1. **Reservas para Alumnos (Salones / Laboratorios):**
-   - Para el caso de **alumnos**, los laboratorios/salones sólo se pueden apartar cuando existan **al menos 10 solicitantes/asistentes**.
-   - Validación tanto en cliente (formulario interactivo) como de forma estricta en el Backend (controlador Zod / HTTP 400 si se intenta apartar con menos de 10).
-2. **Reservas para Maestros:**
-   - Un solo maestro puede solicitar y apartar un laboratorio (`attendees >= 1`).
-3. **Rol del Administrador:**
-   - Se encarga exclusivamente de llevar el control operativo del sistema y de **dar de alta o dar de baja laboratorios** (`POST /laboratories`, `DELETE /laboratories/:id`).
-   - El administrador no solicita espacios para sí mismo; aprueba, gestiona y audita las reservas institucionales.
-4. **Generación y Visualización de Reportes:**
-   - **Alumnos:** Tienen acceso de lectura completo para consultar todas las estadísticas, KPIs y reportes generados.
-   - **Maestros y Administradores:** Son los únicos con permisos para generar, redactar y publicar reportes oficiales (`POST /reports`), así como eliminarlos (`DELETE /reports/:id`).
+1. **Reservas — Maestros:** pueden apartar un laboratorio de forma directa e indicar el número de asistentes.
+2. **Reservas — Alumnos:** cada cuenta cuenta como **1 solicitud**. Se requieren **5 alumnos** pidiendo el mismo laboratorio y horario; una sola cuenta **no** puede poner la cantidad de personas.
+3. **Administrador:** lleva el control (Panel, usuarios, laboratorios, reportes). No solicita reservas a su nombre.
+4. **Incidencias:** cualquier usuario autenticado puede reportar; el administrador actualiza y da seguimiento.
+5. **Reportes e indicadores:** solo visibles y gestionables por el **administrador**.
+6. **Visibilidad de menú:** Panel, Usuarios y Reportes → Admin; Asignaciones → Admin/Docente; el resto según rol.
 
 ---
 
@@ -103,7 +98,7 @@ Base: `http://localhost:4000/api`
 **Protegidos (requieren `Authorization: Bearer <token>`):**
 - `/laboratories` — GET (todos), POST/PUT/DELETE (`ADMIN`)
 - `/reservations` — GET, POST, PUT, DELETE (regla de solicitantes validada en backend)
-- `/reports` — GET (todos los roles pueden ver), POST/DELETE (`ADMIN`, `TEACHER`)
+- `/reports` — GET summary (todos), GET/:id, POST/PUT/DELETE (`ADMIN`, `TEACHER`)
 - `/equipment` — GET (todos), POST/PUT/DELETE (`ADMIN`)
 - `/reservation-equipment` — CRUD
 - `/incidents` — CRUD
@@ -176,10 +171,23 @@ npm run dev
 - **API Backend:** http://localhost:4000/api
 - **Verificación de salud:** http://localhost:4000/api/health
 
-### Credenciales demo
+### Cuentas en MongoDB
 
-| Rol | Correo | Contraseña | Permisos clave |
-|-----|--------|------------|----------------|
-| **Admin** | `admin@nexolab.edu` | `Admin123!` | Altas y bajas de laboratorios, control general del sistema y generación de reportes |
-| **Docente** | `docente@nexolab.edu` | `Teacher123!` | Apartado individual de laboratorios (1 maestro), generación de reportes oficiales |
-| **Alumno** | `alumno@nexolab.edu` | `Student123!` | Apartado grupal de laboratorios (mínimo 10 solicitantes), visualización completa de reportes |
+El login valida usuarios **guardados en MongoDB Atlas** (no hay cuentas hardcodeadas en el frontend).  
+Si en tu cluster ya existen, por ejemplo:
+
+| Rol | Correo | Contraseña típica (si la creaste así) |
+|-----|--------|----------------------------------------|
+| Admin | `admin@nexolab.edu` | la que tengas en BD |
+| Docente | `docente@nexolab.edu` | la que tengas en BD |
+| Alumno | `alumno@nexolab.edu` | la que tengas en BD |
+
+También puedes crear cuentas nuevas con **Registro**.
+
+Integrantes del equipo: 
+
+Fernando adolfo cancino cuenca 2132913
+Daira Yamile aguilar castro 2056579
+jorge damian felzardo hernandez 2132920
+MIA LOURDES GARCIA ELIAS 2071837
+

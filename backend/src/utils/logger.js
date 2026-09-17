@@ -39,3 +39,28 @@ if (process.env.NODE_ENV !== 'production') {
     }),
   );
 }
+
+/** Registra inicio/fin (o error) de procesos críticos del backend. */
+export function trackProcess(name, meta = {}) {
+  const startedAt = Date.now();
+  logger.info(`${name}:inicio`, meta);
+
+  return {
+    end(extra = {}) {
+      logger.info(`${name}:fin`, {
+        ...meta,
+        ...extra,
+        durationMs: Date.now() - startedAt,
+      });
+    },
+    fail(error, extra = {}) {
+      logger.error(`${name}:error`, {
+        ...meta,
+        ...extra,
+        durationMs: Date.now() - startedAt,
+        message: error?.message || String(error),
+        stack: error?.stack,
+      });
+    },
+  };
+}

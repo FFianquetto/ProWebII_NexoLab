@@ -12,6 +12,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
+import { getApiErrorMessage } from '../utils/apiError';
 
 export default function RegisterPage() {
   const { register, token } = useAuth();
@@ -23,29 +24,56 @@ export default function RegisterPage() {
     role: 'STUDENT',
     studentId: '',
   });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   if (token) return <Navigate to="/" replace />;
 
+  const validate = () => {
+    const next: Record<string, string> = {};
+    if (!form.fullName.trim() || form.fullName.trim().length < 2) {
+      next.fullName = 'El nombre debe tener al menos 2 caracteres.';
+    }
+    if (!form.email.trim()) {
+      next.email = 'Ingresa tu correo electrónico.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      next.email = 'El correo no tiene un formato válido.';
+    }
+    if (!form.password) {
+      next.password = 'Ingresa una contraseña.';
+    } else if (form.password.length < 8) {
+      next.password = 'La contraseña debe tener al menos 8 caracteres.';
+    }
+    if (form.role === 'STUDENT') {
+      const id = form.studentId.trim();
+      if (!id) {
+        next.studentId = 'La matrícula es obligatoria para alumnos.';
+      } else if (!/^\d{7}$/.test(id)) {
+        next.studentId = 'La matrícula debe tener exactamente 7 números.';
+      }
+    }
+    setFieldErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+    if (!validate()) return;
+
+    setLoading(true);
     try {
       await register({
-        fullName: form.fullName,
-        email: form.email,
+        fullName: form.fullName.trim(),
+        email: form.email.trim(),
         password: form.password,
         role: form.role,
-        studentId: form.studentId || undefined,
+        studentId: form.role === 'STUDENT' ? form.studentId.trim() : undefined,
       });
       navigate('/');
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'No se pudo registrar';
-      setError(message);
+      setError(getApiErrorMessage(err, 'No se pudo registrar. Revisa los datos e intenta de nuevo.'));
     } finally {
       setLoading(false);
     }
@@ -79,11 +107,16 @@ export default function RegisterPage() {
             {error}
           </Alert>
         )}
-        <Stack component="form" spacing={2} onSubmit={onSubmit}>
+        <Stack component="form" spacing={2} onSubmit={onSubmit} noValidate>
           <TextField
             label="Nombre completo"
             value={form.fullName}
-            onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+            onChange={(e) => {
+              setForm({ ...form, fullName: e.target.value });
+              setFieldErrors((prev) => ({ ...prev, fullName: '' }));
+            }}
+            error={Boolean(fieldErrors.fullName)}
+            helperText={fieldErrors.fullName || ' '}
             required
             fullWidth
           />
@@ -91,7 +124,12 @@ export default function RegisterPage() {
             label="Correo"
             type="email"
             value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            onChange={(e) => {
+              setForm({ ...form, email: e.target.value });
+              setFieldErrors((prev) => ({ ...prev, email: '' }));
+            }}
+            error={Boolean(fieldErrors.email)}
+            helperText={fieldErrors.email || ' '}
             required
             fullWidth
           />
@@ -99,16 +137,20 @@ export default function RegisterPage() {
             label="Contraseña"
             type="password"
             value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            onChange={(e) => {
+              setForm({ ...form, password: e.target.value });
+              setFieldErrors((prev) => ({ ...prev, password: '' }));
+            }}
+            error={Boolean(fieldErrors.password)}
+            helperText={fieldErrors.password || 'Mínimo 8 caracteres'}
             required
             fullWidth
-            helperText="Mínimo 8 caracteres"
           />
           <TextField
             select
             label="Rol"
             value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value })}
+            onChange={(e) => setForm({ ...form, role: e.target.value, studentId: '' })}
             fullWidth
           >
             <MenuItem value="STUDENT">Alumno</MenuItem>
@@ -118,8 +160,16 @@ export default function RegisterPage() {
             <TextField
               label="Matrícula"
               value={form.studentId}
-              onChange={(e) => setForm({ ...form, studentId: e.target.value })}
+              onChange={(e) => {
+                const onlyDigits = e.target.value.replace(/\D/g, '').slice(0, 7);
+                setForm({ ...form, studentId: onlyDigits });
+                setFieldErrors((prev) => ({ ...prev, studentId: '' }));
+              }}
+              error={Boolean(fieldErrors.studentId)}
+              helperText={fieldErrors.studentId || 'Exactamente 7 números (ej. 1845123)'}
+              required
               fullWidth
+              inputProps={{ inputMode: 'numeric', maxLength: 7, pattern: '\\d{7}' }}
             />
           )}
           <Button type="submit" variant="contained" size="large" disabled={loading}>

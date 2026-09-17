@@ -10,7 +10,6 @@ export const appRoutes = {
   equipment: '/equipment',
   reservations: '/reservations',
   reservationEquipment: '/reservation-equipment',
-  subjects: '/subjects',
   incidents: '/incidents',
   users: '/users',
   reports: '/reports',

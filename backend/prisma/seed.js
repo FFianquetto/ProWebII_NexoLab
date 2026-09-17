@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import dns from 'node:dns';
 import bcrypt from 'bcryptjs';
 import {
   PrismaClient,
@@ -8,50 +9,96 @@ import {
   ReservationStatus,
   IncidentStatus,
   IncidentSeverity,
+  IncidentKind,
 } from '@prisma/client';
+
+dns.setDefaultResultOrder('ipv4first');
 
 const prisma = new PrismaClient();
 
-async function main() {
-  const passwordHash = await bcrypt.hash('Admin123!', 10);
-  const teacherHash = await bcrypt.hash('Teacher123!', 10);
-  const studentHash = await bcrypt.hash('Student123!', 10);
-
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@nexolab.edu' },
-    update: {},
-    create: {
-      email: 'admin@nexolab.edu',
+async function upsertUser({ email, password, fullName, role, studentId, phone }) {
+  const passwordHash = await bcrypt.hash(password, 10);
+  return prisma.user.upsert({
+    where: { email },
+    update: {
       passwordHash,
-      fullName: 'Administrador NexoLab',
-      role: Role.ADMIN,
-      phone: '8180000001',
+      fullName,
+      role,
+      studentId: studentId || null,
+      phone: phone || null,
+      isActive: true,
+    },
+    create: {
+      email,
+      passwordHash,
+      fullName,
+      role,
+      studentId: studentId || null,
+      phone: phone || null,
     },
   });
+}
 
-  const teacher = await prisma.user.upsert({
-    where: { email: 'docente@nexolab.edu' },
-    update: {},
-    create: {
-      email: 'docente@nexolab.edu',
-      passwordHash: teacherHash,
-      fullName: 'Dra. Ana Rivera',
-      role: Role.TEACHER,
-      phone: '8180000002',
-    },
+async function main() {
+  const admin = await upsertUser({
+    email: 'admin@nexolab.edu',
+    password: 'Admin123!',
+    fullName: 'Administrador NexoLab',
+    role: Role.ADMIN,
+    phone: '8180000001',
   });
 
-  const student = await prisma.user.upsert({
-    where: { email: 'alumno@nexolab.edu' },
-    update: {},
-    create: {
-      email: 'alumno@nexolab.edu',
-      passwordHash: studentHash,
-      fullName: 'Carlos Mendoza',
-      role: Role.STUDENT,
-      studentId: '1845123',
-      phone: '8180000003',
-    },
+  const teacher = await upsertUser({
+    email: 'docente@nexolab.edu',
+    password: 'Teacher123!',
+    fullName: 'Dra. Ana Rivera',
+    role: Role.TEACHER,
+    phone: '8180000002',
+  });
+
+  const student = await upsertUser({
+    email: 'alumno@nexolab.edu',
+    password: 'Student123!',
+    fullName: 'Carlos Mendoza',
+    role: Role.STUDENT,
+    studentId: '1845123',
+    phone: '8180000003',
+  });
+
+  const student2 = await upsertUser({
+    email: 'alumno2@nexolab.edu',
+    password: 'Student123!',
+    fullName: 'María López',
+    role: Role.STUDENT,
+    studentId: '1845124',
+    phone: '8180000004',
+  });
+
+  const student3 = await upsertUser({
+    email: 'alumno3@nexolab.edu',
+    password: 'Student123!',
+    fullName: 'Luis Hernández',
+    role: Role.STUDENT,
+    studentId: '1845125',
+    phone: '8180000005',
+  });
+
+  const student4 = await upsertUser({
+    email: 'alumno4@nexolab.edu',
+    password: 'Student123!',
+    fullName: 'Sofía Ramírez',
+    role: Role.STUDENT,
+    studentId: '1845126',
+    phone: '8180000006',
+  });
+
+  const student5 = await upsertUser({
+    email: 'alumno5@nexolab.edu',
+    password: 'Student123!',
+    fullName: 'Diego Torres',
+    role: Role.STUDENT,
+    studentId: '1845127',
+    phone: '8180000007',
   });
 
   const subjectNet = await prisma.subject.upsert({
@@ -76,35 +123,109 @@ async function main() {
     },
   });
 
-  const labA = await prisma.laboratory.upsert({
-    where: { code: 'LAB-A101' },
+  const subjectDb = await prisma.subject.upsert({
+    where: { code: 'TC2026' },
     update: {},
     create: {
-      code: 'LAB-A101',
-      name: 'Laboratorio de Redes',
-      building: 'Edificio A',
-      floor: '1',
-      capacity: 24,
-      status: LabStatus.AVAILABLE,
-      description: 'Switch, routers y estaciones de práctica.',
+      code: 'TC2026',
+      name: 'Bases de Datos Avanzadas',
+      description: 'Modelado, consultas y optimización.',
+      credits: 6,
     },
   });
 
-  const labB = await prisma.laboratory.upsert({
-    where: { code: 'LAB-B220' },
-    update: {},
-    create: {
-      code: 'LAB-B220',
-      name: 'Laboratorio de Software',
-      building: 'Edificio B',
-      floor: '2',
-      capacity: 30,
-      status: LabStatus.AVAILABLE,
-      description: 'PCs con stack de desarrollo web.',
-    },
+  // 12 laboratorios (capacidad entre 20 y 30)
+  const labDefs = [
+    { code: 'LAB-A101', name: 'Laboratorio de Redes', building: 'Edificio A', floor: '1', capacity: 24, status: LabStatus.AVAILABLE, description: 'Switch, routers y estaciones de práctica.' },
+    { code: 'LAB-B220', name: 'Laboratorio de Software', building: 'Edificio B', floor: '2', capacity: 30, status: LabStatus.AVAILABLE, description: 'PCs con stack de desarrollo web.' },
+    { code: 'LAB-C305', name: 'Laboratorio de Bases de Datos', building: 'Edificio C', floor: '3', capacity: 28, status: LabStatus.AVAILABLE, description: 'Servidores locales y estaciones SQL.' },
+    { code: 'LAB-D110', name: 'Laboratorio de Ciberseguridad', building: 'Edificio D', floor: '1', capacity: 20, status: LabStatus.MAINTENANCE, description: 'Mantenimiento preventivo de firewalls.' },
+    { code: 'LAB-E201', name: 'Laboratorio de IoT', building: 'Edificio E', floor: '2', capacity: 22, status: LabStatus.AVAILABLE, description: 'Sensores, microcontroladores y gateways.' },
+    { code: 'LAB-F150', name: 'Laboratorio de Multimedia', building: 'Edificio F', floor: '1', capacity: 26, status: LabStatus.AVAILABLE, description: 'Estaciones con GPU para edición y render.' },
+    { code: 'LAB-G310', name: 'Laboratorio de Sistemas Operativos', building: 'Edificio G', floor: '3', capacity: 28, status: LabStatus.AVAILABLE, description: 'Máquinas dual-boot y virtualización.' },
+    { code: 'LAB-H120', name: 'Laboratorio de Electrónica Digital', building: 'Edificio H', floor: '1', capacity: 20, status: LabStatus.AVAILABLE, description: 'FPGA, protoboards y osciloscopios.' },
+    { code: 'LAB-I240', name: 'Laboratorio de Inteligencia Artificial', building: 'Edificio I', floor: '2', capacity: 24, status: LabStatus.AVAILABLE, description: 'Workstations con aceleración GPU.' },
+    { code: 'LAB-J105', name: 'Laboratorio de Cloud Computing', building: 'Edificio J', floor: '1', capacity: 20, status: LabStatus.AVAILABLE, description: 'Nodos locales y acceso a nubes educativas.' },
+    { code: 'LAB-K330', name: 'Laboratorio de Robótica', building: 'Edificio K', floor: '3', capacity: 22, status: LabStatus.AVAILABLE, description: 'Kits móviles y brazos robóticos.' },
+    { code: 'LAB-L210', name: 'Laboratorio de Realidad Virtual', building: 'Edificio L', floor: '2', capacity: 20, status: LabStatus.CLOSED, description: 'Sala de headsets y tracking espacial.' },
+  ];
+
+  const labs = [];
+  for (const def of labDefs) {
+    const lab = await prisma.laboratory.upsert({
+      where: { code: def.code },
+      update: {
+        name: def.name,
+        building: def.building,
+        floor: def.floor,
+        capacity: def.capacity,
+        status: def.status,
+        description: def.description,
+      },
+      create: def,
+    });
+    labs.push(lab);
+  }
+
+  const [labA, labB, labC, labD, labE, labF, labG, labH, labI, labJ, labK, labL] = labs;
+
+  // 24 equipos de préstamo individual: 6 Computadoras, 6 Cascos VR, 6 Bocinas, 6 Multímetros
+  const loanCatalog = [
+    ...Array.from({ length: 6 }, (_, i) => ({
+      category: 'Computadora',
+      name: `Computadora Dell OptiPlex ${i + 1}`,
+      inventoryCode: `EQ-PC-${String(i + 1).padStart(3, '0')}`,
+    })),
+    ...Array.from({ length: 6 }, (_, i) => ({
+      category: 'Casco VR',
+      name: `Casco VR Meta Quest ${i + 1}`,
+      inventoryCode: `EQ-VR-${String(i + 1).padStart(3, '0')}`,
+    })),
+    ...Array.from({ length: 6 }, (_, i) => ({
+      category: 'Bocina',
+      name: `Bocina JBL Charge ${i + 1}`,
+      inventoryCode: `EQ-SPK-${String(i + 1).padStart(3, '0')}`,
+    })),
+    ...Array.from({ length: 6 }, (_, i) => ({
+      category: 'Multímetro',
+      name: `Multímetro Fluke ${i + 1}`,
+      inventoryCode: `EQ-MUL-${String(i + 1).padStart(3, '0')}`,
+    })),
+  ];
+
+  const electronics = [];
+  for (let i = 0; i < loanCatalog.length; i += 1) {
+    const def = loanCatalog[i];
+    const lab = labs[i % labs.length];
+    const eq = await prisma.equipment.upsert({
+      where: { inventoryCode: def.inventoryCode },
+      update: {
+        name: def.name,
+        category: def.category,
+        status: EquipmentStatus.AVAILABLE,
+        laboratoryId: lab.id,
+        notes: 'Préstamo individual 1 a 1 (máx. 1 por persona).',
+      },
+      create: {
+        inventoryCode: def.inventoryCode,
+        name: def.name,
+        category: def.category,
+        status: EquipmentStatus.AVAILABLE,
+        laboratoryId: lab.id,
+        notes: 'Préstamo individual 1 a 1 (máx. 1 por persona).',
+      },
+    });
+    electronics.push(eq);
+  }
+
+  // Marca como MAINTENANCE los EQ-ELC-* legacy para que no aparezcan como disponibles
+  await prisma.equipment.updateMany({
+    where: { inventoryCode: { startsWith: 'EQ-ELC-' } },
+    data: { status: EquipmentStatus.MAINTENANCE },
   });
 
-  const eq1 = await prisma.equipment.upsert({
+  // Equipos legacy no electrónicos (para catálogo general)
+  const eqNet1 = await prisma.equipment.upsert({
     where: { inventoryCode: 'EQ-RTR-001' },
     update: {},
     create: {
@@ -116,19 +237,7 @@ async function main() {
     },
   });
 
-  const eq2 = await prisma.equipment.upsert({
-    where: { inventoryCode: 'EQ-SW-002' },
-    update: {},
-    create: {
-      inventoryCode: 'EQ-SW-002',
-      name: 'Switch Catalyst 2960',
-      category: 'Networking',
-      status: EquipmentStatus.AVAILABLE,
-      laboratoryId: labA.id,
-    },
-  });
-
-  const eq3 = await prisma.equipment.upsert({
+  const eqPc = await prisma.equipment.upsert({
     where: { inventoryCode: 'EQ-PC-010' },
     update: {},
     create: {
@@ -140,122 +249,190 @@ async function main() {
     },
   });
 
-  // Reserva de docente (1 maestro puede apartar)
-  const starts = new Date();
-  starts.setDate(starts.getDate() + 1);
-  starts.setHours(10, 0, 0, 0);
-  const ends = new Date(starts);
-  ends.setHours(12, 0, 0, 0);
+  async function ensureReservation({
+    title,
+    userId,
+    laboratoryId,
+    subjectId,
+    purpose,
+    dayOffset,
+    startHour,
+    endHour,
+    attendees,
+    status,
+    equipment,
+  }) {
+    const existing = await prisma.reservation.findFirst({ where: { title } });
+    if (existing) return existing;
 
-  const existing = await prisma.reservation.findFirst({
-    where: { title: 'Práctica VLAN' },
-  });
+    const startsAt = new Date();
+    startsAt.setDate(startsAt.getDate() + dayOffset);
+    startsAt.setHours(startHour, 0, 0, 0);
+    const endsAt = new Date(startsAt);
+    endsAt.setHours(endHour, 0, 0, 0);
 
-  let reservationId = existing?.id;
-  if (!existing) {
-    const reservation = await prisma.reservation.create({
+    return prisma.reservation.create({
       data: {
-        userId: teacher.id,
-        laboratoryId: labA.id,
-        subjectId: subjectNet.id,
-        title: 'Práctica VLAN',
-        purpose: 'Configuración de VLANs y trunking.',
-        startsAt: starts,
-        endsAt: ends,
-        attendees: 18,
-        status: ReservationStatus.CONFIRMED,
-        reservationEquipment: {
-          create: [
-            { equipmentId: eq1.id, quantity: 1 },
-            { equipmentId: eq2.id, quantity: 1 },
-          ],
-        },
-      },
-    });
-    reservationId = reservation.id;
-  }
-
-  const openIncident = await prisma.incident.findFirst({
-    where: { title: 'Router sin PoE' },
-  });
-  if (!openIncident) {
-    await prisma.incident.create({
-      data: {
-        title: 'Router sin PoE',
-        description: 'El puerto PoE del router no alimenta el access point.',
-        status: IncidentStatus.OPEN,
-        severity: IncidentSeverity.HIGH,
-        laboratoryId: labA.id,
-        equipmentId: eq1.id,
-        reportedById: student.id,
+        userId,
+        laboratoryId,
+        subjectId: subjectId || null,
+        title,
+        purpose,
+        startsAt,
+        endsAt,
+        attendees,
+        status,
+        reservationEquipment: equipment?.length ? { create: equipment } : undefined,
       },
     });
   }
 
-  // Reserva de alumno (REGLA: al menos 10 solicitantes/asistentes)
-  const webStarts = new Date();
-  webStarts.setDate(webStarts.getDate() + 2);
-  webStarts.setHours(14, 0, 0, 0);
-  const webEnds = new Date(webStarts);
-  webEnds.setHours(16, 0, 0, 0);
-
-  const webRes = await prisma.reservation.findFirst({
-    where: { title: 'Sprint Frontend' },
+  // Reservas demo con equipo electrónico (1 por alumno)
+  await ensureReservation({
+    title: 'Práctica VLAN',
+    userId: teacher.id,
+    laboratoryId: labA.id,
+    subjectId: subjectNet.id,
+    purpose: 'Configuración de VLANs y trunking.',
+    dayOffset: 1,
+    startHour: 10,
+    endHour: 12,
+    attendees: 18,
+    status: ReservationStatus.CONFIRMED,
+    equipment: [
+      { equipmentId: electronics[0].id, quantity: 1 },
+    ],
   });
-  if (!webRes) {
-    await prisma.reservation.create({
-      data: {
-        userId: student.id,
-        laboratoryId: labB.id,
-        subjectId: subjectWeb.id,
-        title: 'Sprint Frontend',
-        purpose: 'Sesión grupal de integración React + API.',
-        startsAt: webStarts,
-        endsAt: webEnds,
-        attendees: 10, // Cumple regla de >= 10 solicitantes para alumnos
-        status: ReservationStatus.PENDING,
-        reservationEquipment: {
-          create: [{ equipmentId: eq3.id, quantity: 1 }],
-        },
-      },
-    });
+
+  await ensureReservation({
+    title: 'Sprint Frontend',
+    userId: student.id,
+    laboratoryId: labB.id,
+    subjectId: subjectWeb.id,
+    purpose: 'Sesión de integración React + API.',
+    dayOffset: 2,
+    startHour: 14,
+    endHour: 16,
+    attendees: 1,
+    status: ReservationStatus.PENDING,
+    equipment: [{ equipmentId: electronics[1].id, quantity: 1 }],
+  });
+
+  await ensureReservation({
+    title: 'Consulta SQL avanzada',
+    userId: teacher.id,
+    laboratoryId: labC.id,
+    subjectId: subjectDb.id,
+    purpose: 'Índices, joins y planes de ejecución.',
+    dayOffset: 3,
+    startHour: 9,
+    endHour: 11,
+    attendees: 22,
+    status: ReservationStatus.CONFIRMED,
+    equipment: [{ equipmentId: electronics[2].id, quantity: 1 }],
+  });
+
+  await ensureReservation({
+    title: 'Hackathon interno',
+    userId: student.id,
+    laboratoryId: labB.id,
+    subjectId: subjectWeb.id,
+    purpose: 'Prototipo full-stack en equipo.',
+    dayOffset: 4,
+    startHour: 16,
+    endHour: 18,
+    attendees: 1,
+    status: ReservationStatus.PENDING,
+  });
+
+  async function ensureIncident(data) {
+    const existing = await prisma.incident.findFirst({ where: { title: data.title } });
+    if (existing) return existing;
+    return prisma.incident.create({ data });
   }
 
-  // Reportes oficiales generados por Maestro y Administrador (visibles por alumnos)
-  const reportTeacher = await prisma.report.findFirst({
-    where: { title: 'Informe de Prácticas Redes Q1' },
+  await ensureIncident({
+    title: 'Laptop sin carga',
+    description: 'EQ-ELC-001 no sostiene batería más de 20 minutos.',
+    kind: IncidentKind.EQUIPMENT,
+    status: IncidentStatus.OPEN,
+    severity: IncidentSeverity.HIGH,
+    laboratoryId: labA.id,
+    equipmentId: electronics[0].id,
+    reportedById: student.id,
   });
-  if (!reportTeacher) {
-    await prisma.report.create({
-      data: {
-        title: 'Informe de Prácticas Redes Q1',
-        type: 'OCCUPANCY',
-        summary: 'Alta demanda en el laboratorio de redes durante el primer bloque del semestre.',
-        notes: 'Se sugiere programar mantenimiento preventivo a los switches Catalyst.',
-        laboratoryId: labA.id,
-        createdById: teacher.id,
-      },
-    });
+
+  await ensureIncident({
+    title: 'Tablet con pantalla rota',
+    description: 'Grieta en esquina superior derecha.',
+    kind: IncidentKind.EQUIPMENT,
+    status: IncidentStatus.IN_PROGRESS,
+    severity: IncidentSeverity.MEDIUM,
+    laboratoryId: labB.id,
+    equipmentId: electronics[1].id,
+    reportedById: student.id,
+  });
+
+  await ensureIncident({
+    title: 'Aire acondicionado ruidoso',
+    description: 'Ruido excesivo en LAB-C305 durante prácticas.',
+    kind: IncidentKind.LABORATORY,
+    status: IncidentStatus.RESOLVED,
+    severity: IncidentSeverity.LOW,
+    laboratoryId: labC.id,
+    equipmentId: null,
+    reportedById: teacher.id,
+    resolvedAt: new Date(),
+  });
+
+  async function ensureReport(data) {
+    const existing = await prisma.report.findFirst({ where: { title: data.title } });
+    if (existing) return existing;
+    return prisma.report.create({ data });
   }
 
-  const reportAdmin = await prisma.report.findFirst({
-    where: { title: 'Auditoría de Infraestructura y Altas de Laboratorios' },
+  await ensureReport({
+    title: 'Informe de Prácticas Redes Q1',
+    type: 'OCCUPANCY',
+    summary: 'Alta demanda en el laboratorio de redes durante el primer bloque del semestre.',
+    notes: 'Se sugiere programar mantenimiento preventivo.',
+    laboratoryId: labA.id,
+    createdById: teacher.id,
   });
-  if (!reportAdmin) {
-    await prisma.report.create({
-      data: {
-        title: 'Auditoría de Infraestructura y Altas de Laboratorios',
-        type: 'GENERAL',
-        summary: 'Revisión semestral del estado operativo de los laboratorios y capacidad instalada.',
-        notes: 'Se mantiene supervisión estricta de altas/bajas de salas y control de ocupación.',
-        laboratoryId: labB.id,
-        createdById: admin.id,
-      },
-    });
-  }
 
-  console.log('Seed NexoLab MongoDB listo');
-  console.log({ admin: admin.email, teacher: teacher.email, student: student.email, reservationId });
+  await ensureReport({
+    title: 'Auditoría de Infraestructura',
+    type: 'GENERAL',
+    summary: 'Revisión semestral del estado operativo de los 12 laboratorios.',
+    notes: 'Inventario de 24 equipos electrónicos listo para préstamo.',
+    laboratoryId: labB.id,
+    createdById: admin.id,
+  });
+
+  await ensureReport({
+    title: 'Uso de equipo electrónico',
+    type: 'EQUIPMENT',
+    summary: 'Regla activa: 1 equipo electrónico por alumno por solicitud.',
+    notes: 'Monitorear liberaciones al cerrar reservas.',
+    laboratoryId: labB.id,
+    createdById: teacher.id,
+  });
+
+  // Silenciar vars no usadas (labs extras quedan en DB)
+  void [labD, labE, labF, labG, labH, labI, labJ, labK, labL, eqNet1, eqPc, student2, student3, student4, student5];
+
+  console.log('Seed NexoLab listo: 12 laboratorios + 24 equipos electrónicos + 5 alumnos');
+  console.log({
+    admin: 'admin@nexolab.edu / Admin123!',
+    docente: 'docente@nexolab.edu / Teacher123!',
+    alumno: 'alumno@nexolab.edu / Student123!',
+    alumno2: 'alumno2@nexolab.edu / Student123!',
+    alumno3: 'alumno3@nexolab.edu / Student123!',
+    alumno4: 'alumno4@nexolab.edu / Student123!',
+    alumno5: 'alumno5@nexolab.edu / Student123!',
+    laboratorios: labs.length,
+    equiposElectronicos: electronics.length,
+  });
 }
 
 main()

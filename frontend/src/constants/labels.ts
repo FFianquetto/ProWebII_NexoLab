@@ -30,8 +30,15 @@ export const roleLabels: Record<string, string> = {
   STUDENT: 'Alumno',
 };
 
+export const reportTypeLabels: Record<string, string> = {
+  GENERAL: 'General',
+  OCCUPANCY: 'Ocupación de espacios',
+  INCIDENTS: 'Incidencias y fallas',
+  EQUIPMENT: 'Inventario de equipos',
+};
+
 export const labStatusLabels: Record<string, string> = {
-  AVAILABLE: 'Disponible',
+  AVAILABLE: 'Disponible (funcional)',
   MAINTENANCE: 'Mantenimiento',
   CLOSED: 'Cerrado',
 };
@@ -63,6 +70,11 @@ export const severityLabels: Record<string, string> = {
   MEDIUM: 'Media',
   HIGH: 'Alta',
   CRITICAL: 'Crítica',
+};
+
+export const incidentKindLabels: Record<string, string> = {
+  LABORATORY: 'Laboratorio',
+  EQUIPMENT: 'Equipo',
 };
 
 export function labelOf(map: Record<string, string>, value?: string | null) {

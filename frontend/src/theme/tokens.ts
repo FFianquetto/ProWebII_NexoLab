@@ -14,7 +14,7 @@ export const tokens = {
   textOnDark: '#EAF3EE',
   textOnDarkMuted: '#9BB5A8',
   textOnLight: '#122018',
-  textOnLightMuted: '#5A7266',
+  textOnLightMuted: '#243830',
   danger: '#F07167',
   warning: '#F0B429',
   /** Superficies informativas (KPIs, tablas) */

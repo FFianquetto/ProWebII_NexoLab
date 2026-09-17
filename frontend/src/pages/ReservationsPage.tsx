@@ -1,262 +1,411 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Chip, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import dayjs from 'dayjs';
 import ResourcePage from '../components/ResourcePage';
+import ReservationDateTimeField, {
+  type BusySlot,
+} from '../components/ReservationDateTimeField';
+import { ReservationStatusChip, RoleChip } from '../components/StatusChip';
 import api from '../api/client';
-import type { Laboratory, Reservation, Subject, User } from '../types';
-import { labelOf, reservationStatusLabels, roleLabels } from '../constants/labels';
+import type { Laboratory, Reservation } from '../types';
+import { reservationStatusLabels } from '../constants/labels';
 import { useAuth } from '../context/AuthContext';
+import { isAdmin, isStudent, isTeacher } from '../constants/permissions';
+import { tokens } from '../theme/tokens';
+import {
+  formatReservationDateTime,
+  isStartHourBlocked,
+  nextBusinessStart,
+  suggestEndFromStart,
+  toHourStart,
+  validateReservationWindow,
+} from '../utils/reservationTime';
 
-function toLocalInput(value?: string) {
-  if (!value) return '';
-  const d = new Date(value);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const STUDENT_GROUP_MIN = 5;
+const MAX_ATTENDEES = 30;
+
+function ReservationFormFields({
+  values,
+  setValues,
+  labs,
+  teacher,
+  student,
+  admin,
+}: {
+  values: Partial<Reservation>;
+  setValues: (v: Partial<Reservation>) => void;
+  labs: Laboratory[];
+  teacher: boolean;
+  student: boolean;
+  admin: boolean;
+}) {
+  const [busySlots, setBusySlots] = useState<BusySlot[]>([]);
+  const windowHint = validateReservationWindow(values.startsAt, values.endsAt);
+  const busyHint =
+    values.startsAt && busySlots.length && isStartHourBlocked(values.startsAt, busySlots)
+      ? 'Esa hora se traslapa con una reserva confirmada del laboratorio.'
+      : null;
+
+  useEffect(() => {
+    const labId = values.laboratoryId;
+    const startsAt = values.startsAt;
+    if (!labId || !startsAt) {
+      setBusySlots([]);
+      return;
+    }
+    const day = dayjs(startsAt);
+    if (!day.isValid()) {
+      setBusySlots([]);
+      return;
+    }
+    const dayKey = day.format('YYYY-MM-DD');
+    const excludeId = values.id ? String(values.id) : '';
+    let cancelled = false;
+
+    api
+      .get('/reservations/busy', {
+        params: {
+          laboratoryId: labId,
+          day: dayKey,
+          ...(excludeId ? { excludeId } : {}),
+        },
+      })
+      .then((res) => {
+        if (!cancelled) setBusySlots(res.data.data || []);
+      })
+      .catch(() => {
+        if (!cancelled) setBusySlots([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [values.laboratoryId, values.startsAt, values.id]);
+
+  return (
+    <>
+      <TextField
+        label="Título de la reserva"
+        value={values.title || ''}
+        onChange={(e) => setValues({ ...values, title: e.target.value })}
+        required
+        helperText="Obligatorio · mínimo 2 caracteres"
+        fullWidth
+      />
+
+      <TextField
+        select
+        label="Laboratorio"
+        value={values.laboratoryId || ''}
+        onChange={(e) => setValues({ ...values, laboratoryId: e.target.value })}
+        required
+        fullWidth
+      >
+        {[...labs]
+          .sort((a, b) => {
+            const aOk = a.status === 'AVAILABLE' ? 0 : 1;
+            const bOk = b.status === 'AVAILABLE' ? 0 : 1;
+            return aOk - bOk || a.code.localeCompare(b.code);
+          })
+          .map((lab) => {
+            const available = lab.status === 'AVAILABLE';
+            return (
+              <MenuItem key={lab.id} value={lab.id} disabled={!available}>
+                {lab.code} - {lab.name} (Cap. {lab.capacity})
+                {available ? '' : ' — Inactivo'}
+              </MenuItem>
+            );
+          })}
+      </TextField>
+
+      <Alert severity={windowHint || busyHint ? 'warning' : 'info'} sx={{ py: 0.5 }}>
+        {windowHint ||
+          busyHint ||
+          'Duración fija: 1 h 59 min. Horario 8:00 a.m.–8:00 p.m. (fin máx. 10:00 p.m.). Horas ocupadas deshabilitadas.'}
+      </Alert>
+
+      <Stack spacing={1.25}>
+        <ReservationDateTimeField
+          valueIso={values.startsAt}
+          minDateTime={dayjs()}
+          busySlots={busySlots}
+          error={Boolean(windowHint || busyHint)}
+          helperText={windowHint || busyHint || undefined}
+          onChange={(startsAt) =>
+            setValues({
+              ...values,
+              startsAt,
+              endsAt: suggestEndFromStart(startsAt),
+            })
+          }
+        />
+
+        <TextField
+          label="Fin (automático)"
+          value={formatReservationDateTime(values.endsAt)}
+          fullWidth
+          disabled
+          helperText="Inicio + 1 h 59 min · solo horas en punto"
+        />
+      </Stack>
+
+      {teacher && (
+        <TextField
+          label="Número de asistentes"
+          type="number"
+          value={values.attendees ?? 1}
+          slotProps={{
+            htmlInput: {
+              min: 1,
+              max: Math.min(
+                MAX_ATTENDEES,
+                labs.find((l) => l.id === values.laboratoryId)?.capacity || MAX_ATTENDEES,
+              ),
+            },
+          }}
+          onChange={(e) => setValues({ ...values, attendees: Number(e.target.value) })}
+          fullWidth
+          required
+          helperText="No puede superar la capacidad del laboratorio (máx. 30 personas)"
+        />
+      )}
+
+      {student && (
+        <Typography variant="body2" sx={{ color: tokens.textOnLight, fontWeight: 600 }}>
+          Tu solicitud cuenta como 1 alumno.
+        </Typography>
+      )}
+
+      {(teacher || admin) && (
+        <TextField
+          select
+          label="Estado de la reserva"
+          value={values.status || 'PENDING'}
+          onChange={(e) =>
+            setValues({ ...values, status: e.target.value as Reservation['status'] })
+          }
+          fullWidth
+        >
+          {Object.entries(reservationStatusLabels).map(([value, label]) => (
+            <MenuItem key={value} value={value}>
+              {label}
+            </MenuItem>
+          ))}
+        </TextField>
+      )}
+
+      <TextField
+        label="Propósito o justificación académica"
+        value={values.purpose || ''}
+        onChange={(e) => setValues({ ...values, purpose: e.target.value })}
+        fullWidth
+        multiline
+        minRows={2}
+      />
+    </>
+  );
 }
 
 export default function ReservationsPage() {
   const { user: currentUser } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
+  const student = isStudent(currentUser?.role);
+  const teacher = isTeacher(currentUser?.role);
+  const admin = isAdmin(currentUser?.role);
   const [labs, setLabs] = useState<Laboratory[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [info, setInfo] = useState('');
 
   useEffect(() => {
-    Promise.all([api.get('/users'), api.get('/laboratories'), api.get('/subjects')])
-      .then(([u, l, s]) => {
-        setUsers(u.data.data);
-        setLabs(l.data.data);
-        setSubjects(s.data.data);
-      })
+    api
+      .get('/laboratories')
+      .then((l) => setLabs(l.data.data))
       .catch(() => undefined);
   }, []);
 
-  const defaultStart = new Date();
-  defaultStart.setHours(defaultStart.getHours() + 1, 0, 0, 0);
-  const defaultEnd = new Date(defaultStart);
-  defaultEnd.setHours(defaultEnd.getHours() + 2);
+  const defaultStart = dayjs(nextBusinessStart());
+  const defaultStartIso = defaultStart.toDate().toISOString();
+  const defaultEndIso = suggestEndFromStart(defaultStartIso);
 
-  // Solicitantes válidos (Maestros y Alumnos; el administrador lleva el control y no se auto-reserva)
-  const selectableRequesters = users.filter((u) => u.role === 'TEACHER' || u.role === 'STUDENT');
+  const ownsOrAdmin = (row: Reservation) =>
+    admin || row.userId === currentUser?.id;
 
   return (
-    <ResourcePage<Reservation>
-      title="Reservas"
-      subtitle="Agenda y control de uso de laboratorios. Alumnos requieren mínimo 10 solicitantes; maestros pueden apartar individualmente."
-      endpoint="/reservations"
-      emptyForm={{
-        userId: currentUser?.role === 'ADMIN' ? (selectableRequesters[0]?.id || '') : (currentUser?.id || ''),
-        laboratoryId: labs[0]?.id || '',
-        subjectId: null,
-        title: '',
-        purpose: '',
-        startsAt: defaultStart.toISOString(),
-        endsAt: defaultEnd.toISOString(),
-        attendees: currentUser?.role === 'STUDENT' ? 10 : 1,
-        status: 'PENDING',
-      }}
-      columns={[
-        { key: 'title', label: 'Título', primary: true },
-        {
-          key: 'laboratory',
-          label: 'Laboratorio',
-          render: (row) => row.laboratory?.code || row.laboratoryId,
-        },
-        {
-          key: 'user',
-          label: 'Solicitante',
-          render: (row) => (
-            <Stack direction="row" spacing={1} alignItems="center">
-              <span>{row.user?.fullName || row.userId}</span>
-              {row.user?.role && (
-                <Chip
-                  size="small"
-                  label={labelOf(roleLabels, row.user.role)}
-                  variant="outlined"
-                  color={row.user.role === 'TEACHER' ? 'primary' : 'default'}
-                />
-              )}
-            </Stack>
-          ),
-        },
-        {
-          key: 'attendees',
-          label: 'Solicitantes / Asistentes',
-          render: (row) => `${row.attendees} personas`,
-        },
-        {
-          key: 'startsAt',
-          label: 'Inicio',
-          render: (row) => new Date(row.startsAt).toLocaleString('es-MX'),
-        },
-        {
-          key: 'status',
-          label: 'Estado',
-          render: (row) => labelOf(reservationStatusLabels, row.status),
-        },
-      ]}
-      toPayload={(values) => {
-        const selectedUser = users.find((u) => u.id === values.userId);
-        const isStudent = selectedUser?.role === 'STUDENT';
-        const rawAttendees = Number(values.attendees || 1);
-        const attendees = isStudent && rawAttendees < 10 ? 10 : rawAttendees;
+    <Box>
+      {student && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Como alumno, cada cuenta cuenta como <strong>1 solicitud</strong>. Se necesitan mínimo{' '}
+          <strong>{STUDENT_GROUP_MIN} alumnos</strong> pidiendo el mismo laboratorio y horario para
+          que quede <strong>reservado</strong>. No puedes pedir dos veces el mismo slot ni otro lab
+          que se traslape con tus ~<strong>2 h</strong> activas; después de ese fin sí puedes pedir
+          otro. Horario: <strong>8:00 a.m.–8:00 p.m.</strong> (fin máx. 10:00 p.m.).
+        </Alert>
+      )}
+      {teacher && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          Como maestro apartas el laboratorio de forma directa. Máximo{' '}
+          <strong>{MAX_ATTENDEES} personas</strong> (o la capacidad del lab). Horario:{' '}
+          <strong>8:00 a.m.–8:00 p.m.</strong>; duración ~<strong>2 h</strong> (fin máx. 10:00 p.m.).
+        </Alert>
+      )}
+      {admin && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Como administrador ves todas las reservas para dar seguimiento. No creas reservas propias.
+        </Alert>
+      )}
+      {info && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setInfo('')}>
+          {info}
+        </Alert>
+      )}
 
-        return {
-          userId: String(values.userId),
-          laboratoryId: String(values.laboratoryId),
-          subjectId: values.subjectId ? String(values.subjectId) : null,
-          title: values.title,
-          purpose: values.purpose || null,
-          startsAt: values.startsAt,
-          endsAt: values.endsAt,
-          attendees,
-          status: values.status || 'PENDING',
-        };
-      }}
-      renderForm={(values, setValues) => {
-        const selectedUser = users.find((u) => u.id === values.userId);
-        const isStudent = selectedUser?.role === 'STUDENT';
-        const isTeacher = selectedUser?.role === 'TEACHER';
-        const attendees = Number(values.attendees || 0);
+      <ResourcePage<Reservation>
+        title="Reservas"
+        endpoint="/reservations"
+        emptyForm={{
+          userId: currentUser?.id || '',
+          laboratoryId: labs.find((l) => l.status === 'AVAILABLE')?.id || labs[0]?.id || '',
+          subjectId: null,
+          title: '',
+          purpose: '',
+          startsAt: defaultStartIso,
+          endsAt: defaultEndIso,
+          attendees: 1,
+          status: 'PENDING',
+        }}
+        canCreate={student || teacher}
+        canEdit={ownsOrAdmin}
+        canDelete={ownsOrAdmin}
+        getDeleteLabel={(row) =>
+          `${row.title}${row.laboratory?.code ? ` (${row.laboratory.code})` : ''}`
+        }
+        validateBeforeSave={async (values) => {
+          if (!values.title || String(values.title).trim().length < 2) {
+            return 'El título debe tener al menos 2 caracteres.';
+          }
+          const basic = validateReservationWindow(values.startsAt, values.endsAt);
+          if (basic) return basic;
+          if (!values.laboratoryId || !values.startsAt) return 'Completa laboratorio y horario.';
 
-        return (
-          <>
-            <TextField
-              label="Título de la reserva"
-              value={values.title || ''}
-              onChange={(e) => setValues({ ...values, title: e.target.value })}
-              required
-              fullWidth
-            />
+          if (teacher || admin) {
+            const labCap = labs.find((l) => l.id === values.laboratoryId)?.capacity || MAX_ATTENDEES;
+            const maxPeople = Math.min(MAX_ATTENDEES, labCap);
+            const attendees = Number(values.attendees || 1);
+            if (attendees < 1) return 'Debes indicar al menos 1 asistente.';
+            if (attendees > maxPeople) {
+              return `No se puede reservar para más de ${maxPeople} personas (tope general 30 / capacidad del lab).`;
+            }
+          }
 
-            <TextField
-              select
-              label="Solicitante (Maestro o Alumno)"
-              value={values.userId || ''}
-              onChange={(e) => {
-                const nextUserId = e.target.value;
-                const nextUser = users.find((u) => u.id === nextUserId);
-                const nextIsStudent = nextUser?.role === 'STUDENT';
-                setValues({
-                  ...values,
-                  userId: nextUserId,
-                  attendees: nextIsStudent && (values.attendees ?? 0) < 10 ? 10 : (values.attendees || 1),
-                });
-              }}
-              required
-              fullWidth
-              helperText={
-                isStudent
-                  ? 'Usuario con rol Alumno: Se requiere un mínimo de 10 solicitantes para apartar.'
-                  : isTeacher
-                  ? 'Usuario con rol Maestro: Puede solicitar el laboratorio de forma individual (1 persona en adelante).'
-                  : 'Selecciona al solicitante del laboratorio.'
+          const day = dayjs(values.startsAt).format('YYYY-MM-DD');
+          try {
+            const { data } = await api.get('/reservations/busy', {
+              params: {
+                laboratoryId: values.laboratoryId,
+                day,
+                ...(values.id ? { excludeId: values.id } : {}),
+              },
+            });
+            const busy = (data.data || []) as BusySlot[];
+            if (isStartHourBlocked(String(values.startsAt), busy)) {
+              return 'Esa hora ya está ocupada en el laboratorio (se traslapa con otra reserva).';
+            }
+          } catch {
+            // El backend igual valida conflicto al guardar
+          }
+          return null;
+        }}
+        onSaved={(data) => {
+          const progress = (data as { groupProgress?: { message?: string } })?.groupProgress;
+          if (progress?.message) setInfo(progress.message);
+        }}
+        columns={[
+          {
+            key: 'title',
+            label: 'Título',
+            primary: true,
+            render: (row) =>
+              String(row.title || '')
+                .replace(/\s*grupal\s*/gi, ' ')
+                .replace(/\s+/g, ' ')
+                .trim(),
+          },
+          {
+            key: 'laboratory',
+            label: 'Laboratorio',
+            render: (row) => row.laboratory?.code || row.laboratoryId,
+          },
+          ...(admin
+            ? [
+                {
+                  key: 'user',
+                  label: 'Quién reservó',
+                  render: (row: Reservation) => {
+                    const who = row.reservedBy || row.user;
+                    return (
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <span>{who?.fullName || row.userId}</span>
+                        <RoleChip role={who?.role} />
+                      </Stack>
+                    );
+                  },
+                },
+              ]
+            : []),
+          {
+            key: 'attendees',
+            label: teacher || admin ? 'Asistentes' : 'Solicitantes',
+            render: (row) => {
+              if (row.user?.role === 'STUDENT' || student) {
+                const n = Number(row.groupCount ?? row.attendees ?? 1);
+                return `${n} ${n === 1 ? 'alumno' : 'alumnos'}`;
               }
-            >
-              {users.map((u) => (
-                <MenuItem key={u.id} value={u.id} disabled={u.role === 'ADMIN'}>
-                  {u.fullName} — {labelOf(roleLabels, u.role)} {u.role === 'ADMIN' ? '(Administrador: sólo control)' : ''}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            {isStudent && (
-              <Alert severity="info" sx={{ py: 0.5 }}>
-                <strong>Regla de reserva para alumnos:</strong> Los salones/laboratorios sólo se pueden apartar cuando existan al menos <strong>10 solicitantes</strong>.
-              </Alert>
-            )}
-
-            <TextField
-              select
-              label="Laboratorio"
-              value={values.laboratoryId || ''}
-              onChange={(e) => setValues({ ...values, laboratoryId: e.target.value })}
-              required
-              fullWidth
-            >
-              {labs.map((lab) => (
-                <MenuItem key={lab.id} value={lab.id} disabled={lab.status !== 'AVAILABLE'}>
-                  {lab.code} - {lab.name} (Capacidad: {lab.capacity}) {lab.status !== 'AVAILABLE' ? `[${lab.status}]` : ''}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <TextField
-              select
-              label="Materia asociada (opcional)"
-              value={values.subjectId ?? ''}
-              onChange={(e) => setValues({ ...values, subjectId: e.target.value ? e.target.value : null })}
-              fullWidth
-            >
-              <MenuItem value="">Sin materia</MenuItem>
-              {subjects.map((s) => (
-                <MenuItem key={s.id} value={s.id}>
-                  {s.code} - {s.name}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <TextField
-              label="Fecha y hora de inicio"
-              type="datetime-local"
-              value={toLocalInput(values.startsAt)}
-              onChange={(e) => setValues({ ...values, startsAt: new Date(e.target.value).toISOString() })}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              required
-            />
-
-            <TextField
-              label="Fecha y hora de fin"
-              type="datetime-local"
-              value={toLocalInput(values.endsAt)}
-              onChange={(e) => setValues({ ...values, endsAt: new Date(e.target.value).toISOString() })}
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              required
-            />
-
-            <TextField
-              label="Número de solicitantes / asistentes"
-              type="number"
-              value={values.attendees ?? (isStudent ? 10 : 1)}
-              slotProps={{ htmlInput: { min: isStudent ? 10 : 1, max: 500 } }}
-              onChange={(e) => setValues({ ...values, attendees: Number(e.target.value) })}
-              fullWidth
-              required
-              error={Boolean(isStudent && attendees < 10)}
-              helperText={
-                isStudent
-                  ? attendees < 10
-                    ? 'Error: Mínimo 10 solicitantes para alumnos'
-                    : 'Cumple el mínimo de 10 solicitantes para alumnos'
-                  : 'Para maestros puede ser 1 solo solicitante'
-              }
-            />
-
-            <TextField
-              select
-              label="Estado de la reserva"
-              value={values.status || 'PENDING'}
-              onChange={(e) => setValues({ ...values, status: e.target.value as Reservation['status'] })}
-              fullWidth
-            >
-              {Object.entries(reservationStatusLabels).map(([value, label]) => (
-                <MenuItem key={value} value={value}>
-                  {label}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <TextField
-              label="Propósito o justificación académica"
-              value={values.purpose || ''}
-              onChange={(e) => setValues({ ...values, purpose: e.target.value })}
-              fullWidth
-              multiline
-              minRows={2}
-            />
-          </>
-        );
-      }}
-    />
+              return `${row.attendees} personas`;
+            },
+          },
+          {
+            key: 'startsAt',
+            label: 'Inicio',
+            render: (row) => formatReservationDateTime(row.startsAt),
+          },
+          {
+            key: 'endsAt',
+            label: 'Fin',
+            render: (row) => formatReservationDateTime(row.endsAt),
+          },
+          {
+            key: 'status',
+            label: 'Estado',
+            render: (row) => <ReservationStatusChip status={row.status} />,
+          },
+        ]}
+        toPayload={(values) => {
+          const startIso = toHourStart(new Date(values.startsAt as string)).toISOString();
+          const endIso = suggestEndFromStart(startIso);
+          const payload: Record<string, unknown> = {
+            laboratoryId: String(values.laboratoryId),
+            subjectId: null,
+            title: String(values.title || '').trim(),
+            purpose: values.purpose || null,
+            startsAt: startIso,
+            endsAt: endIso,
+          };
+          if (teacher || admin) {
+            payload.attendees = Number(values.attendees || 1);
+            // Maestro confirma al guardar (ocupa el lab de inmediato)
+            payload.status = teacher ? 'CONFIRMED' : values.status || 'PENDING';
+          }
+          return payload;
+        }}
+        renderForm={(values, setValues) => (
+          <ReservationFormFields
+            values={values}
+            setValues={setValues}
+            labs={labs}
+            teacher={teacher}
+            student={student}
+            admin={admin}
+          />
+        )}
+      />
+    </Box>
   );
 }
