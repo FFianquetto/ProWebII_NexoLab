@@ -36,8 +36,8 @@ export default function DashboardPage() {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom color="text.primary">
-        Hola, {user?.fullName?.split(' ')[0]}
+      <Typography variant="h4" gutterBottom sx={{ color: tokens.textOnLight, fontWeight: 800, letterSpacing: '-0.8px', fontSize: { xs: '1.75rem', md: '2.125rem' }, }} >
+      Hola, {user?.fullName?.split(' ')[0]}
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={3}>
         Vista rápida del estado operativo de los laboratorios.
