@@ -1,16 +1,176 @@
 <!doctype html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NexoLab</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NexoLab - Préstamo y Renta de Equipo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    rel="stylesheet" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      background-color: #0b0f19;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      border-bottom: 1px solid #1e293b;
+      padding: 1rem 1.5rem;
+      background: #0f172a;
+    }
+
+    .logo {
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 700;
+      font-size: 1.25rem;
+      color: #38bdf8;
+    }
+
+    main {
+      max-width: 800px;
+      margin: 2.5rem auto;
+      padding: 0 1.5rem;
+      flex: 1;
+    }
+
+    h1 {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 2rem;
+      color: #f8fafc;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: #94a3b8;
+      font-size: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background-color: #131d31;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card h2 {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1.2rem;
+      color: #38bdf8;
+      margin-bottom: 0.75rem;
+    }
+
+    ul {
+      list-style: none;
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 0.5rem;
+    }
+
+    li:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .item-name {
+      color: #e2e8f0;
+    }
+
+    .item-price {
+      color: #a5f3fc;
+      font-size: 0.875rem;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+    }
+
+    .requirements {
+      color: #cbd5e1;
+      line-height: 1.6;
+      font-size: 0.95rem;
+    }
+
+    .requirements strong {
+      color: #f8fafc;
+    }
+
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      border-top: 1px solid #1e293b;
+      color: #64748b;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="logo">NexoLab</div>
+  </header>
+
+  <main>
+    <h1>Renta de Equipo Electrónico</h1>
+    <p class="subtitle">Servicio interno para prácticas, laboratorios y proyectos escolares.</p>
+
+    <section class="card">
+      <h2>Equipos Disponibles</h2>
+      <ul>
+        <li>
+          <span class="item-name">Microcontroladores (Arduino / ESP32)</span>
+          <span class="item-price">Uso en taller</span>
+        </li>
+        <li>
+          <span class="item-name">Sensores y módulos de telemetría</span>
+          <span class="item-price">Kit por día</span>
+        </li>
+        <li>
+          <span class="item-name">Kits de componentes y cableado</span>
+          <span class="item-price">Préstamo por sesión</span>
+        </li>
+        <li>
+          <span class="item-name">Osciloscopios y multímetros portátiles</span>
+          <span class="item-price">Solo en laboratorio</span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Requisitos para el Préstamo</h2>
+      <div class="requirements">
+        <p>• Presentar credencial escolar vigente.</p>
+        <p>• Registro de matrícula y firma en la bitácora de entrega.</p>
+        <p>• Devolución del material completo y limpio antes del cierre de turno.</p>
+        <p>• El uso fuera de los laboratorios requiere autorización de tu docente.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Laboratorio escolar &bull; Módulo de atención planta baja
+  </footer>
+</body>
+
 </html>
