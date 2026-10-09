@@ -64,9 +64,18 @@ export default function DashboardPage() {
                 <Typography variant="body2" sx={{ color: tokens.textOnLightMuted, fontWeight: 600 }}>
                   {kpi.label}
                 </Typography>
-                <Typography variant="h3" sx={{ color: tokens.textOnLight, mt: 0.5, fontWeight: 800 }}>
-                  {kpi.value}
-                </Typography>
+                <Typography
+  variant="h3"
+  sx={{
+    color: tokens.textOnLight,
+    mt: 1,
+    fontWeight: 800,
+    letterSpacing: '-1px',
+    fontVariantNumeric: 'tabular-nums',
+  }}
+>
+  {kpi.value}
+</Typography>
               </CardContent>
             </InfoCard>
           </Grid>
