@@ -98,9 +98,26 @@ export default function LoginPage() {
             fullWidth
             autoComplete="current-password"
           />
-          <Button type="submit" variant="contained" size="large" disabled={loading}>
-            {loading ? 'Entrando…' : 'Entrar'}
-          </Button>
+         <Button
+            type="submit"
+            variant="contained"
+            size="large"
+            disabled={loading}
+            sx={{
+            py: 1.3,
+            borderRadius: 2,
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            textTransform: 'none',
+            background: 'linear-gradient(135deg, #0e7490 0%, #0d9488 100%)',
+            boxShadow: '0 4px 14px 0 rgba(14, 116, 144, 0.35)',
+            '&:hover': {
+            background: 'linear-gradient(135deg, #085a70 0%, #0f766e 100%)',
+            },
+             }}
+            >
+  {loading ? 'Entrando…' : 'Entrar'}
+</Button>
         </Stack>
         <Typography variant="body2" mt={2.5}>
           ¿No tienes cuenta?{' '}
