@@ -52,14 +52,18 @@ export default function LoginPage() {
     }}
     >
       <Paper
-        sx={{
-          width: '100%',
-          maxWidth: 440,
-          p: { xs: 3, sm: 4 },
-          borderRadius: 4,
-          border: '1px solid rgba(255,255,255,0.35)',
-        }}
-      >
+        elevation={0}
+         sx={{
+         width: '100%',
+         maxWidth: 420,
+         p: { xs: 3.5, sm: 4.5 },
+         borderRadius: 3.5,
+         bgcolor: 'rgba(255, 255, 255, 0.94)',
+         backdropFilter: 'blur(16px)',
+         border: '1px solid rgba(255, 255, 255, 0.5)',
+         boxShadow: '0 20px 45px -10px rgba(0, 0, 0, 0.35)',
+     }}
+>
         <Typography
           variant="h4"
           sx={{ fontFamily: '"DM Sans", sans-serif', fontWeight: 800, color: 'primary.main' }}
