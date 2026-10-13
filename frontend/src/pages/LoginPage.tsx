@@ -41,29 +41,25 @@ export default function LoginPage() {
 
   return (
     <Box
-     sx={{
-      minHeight: '100dvh',
-      display: 'grid',
-      placeItems: 'center',
-      px: 2,
-      py: 3,
-      background:
-    'radial-gradient(circle at 80% 20%, rgba(14, 116, 144, 0.35), transparent 45%), radial-gradient(circle at 15% 85%, rgba(16, 185, 129, 0.2), transparent 40%), linear-gradient(150deg, #041d16 0%, #062b22 50%, #071f28 100%)',
-    }}
+      sx={{
+        minHeight: '100dvh',
+        display: 'grid',
+        placeItems: 'center',
+        px: 2,
+        py: 3,
+        background:
+          'radial-gradient(circle at 18% 18%, rgba(34,166,199,0.22), transparent 32%), linear-gradient(145deg, #083528 0%, #0D4F3C 42%, #0E7490 100%)',
+      }}
     >
       <Paper
-        elevation={0}
-         sx={{
-         width: '100%',
-         maxWidth: 420,
-         p: { xs: 3.5, sm: 4.5 },
-         borderRadius: 3.5,
-         bgcolor: 'rgba(255, 255, 255, 0.94)',
-         backdropFilter: 'blur(16px)',
-         border: '1px solid rgba(255, 255, 255, 0.5)',
-         boxShadow: '0 20px 45px -10px rgba(0, 0, 0, 0.35)',
-     }}
->
+        sx={{
+          width: '100%',
+          maxWidth: 440,
+          p: { xs: 3, sm: 4 },
+          borderRadius: 4,
+          border: '1px solid rgba(255,255,255,0.35)',
+        }}
+      >
         <Typography
           variant="h4"
           sx={{ fontFamily: '"DM Sans", sans-serif', fontWeight: 800, color: 'primary.main' }}
@@ -98,26 +94,9 @@ export default function LoginPage() {
             fullWidth
             autoComplete="current-password"
           />
-         <Button
-            type="submit"
-            variant="contained"
-            size="large"
-            disabled={loading}
-            sx={{
-            py: 1.3,
-            borderRadius: 2,
-            fontWeight: 700,
-            fontSize: '0.95rem',
-            textTransform: 'none',
-            background: 'linear-gradient(135deg, #0e7490 0%, #0d9488 100%)',
-            boxShadow: '0 4px 14px 0 rgba(14, 116, 144, 0.35)',
-            '&:hover': {
-            background: 'linear-gradient(135deg, #085a70 0%, #0f766e 100%)',
-            },
-             }}
-            >
-  {loading ? 'Entrando…' : 'Entrar'}
-</Button>
+          <Button type="submit" variant="contained" size="large" disabled={loading}>
+            {loading ? 'Entrando…' : 'Entrar'}
+          </Button>
         </Stack>
         <Typography variant="body2" mt={2.5}>
           ¿No tienes cuenta?{' '}
