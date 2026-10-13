@@ -41,15 +41,15 @@ export default function LoginPage() {
 
   return (
     <Box
-      sx={{
-        minHeight: '100dvh',
-        display: 'grid',
-        placeItems: 'center',
-        px: 2,
-        py: 3,
-        background:
-          'radial-gradient(circle at 18% 18%, rgba(34,166,199,0.22), transparent 32%), linear-gradient(145deg, #083528 0%, #0D4F3C 42%, #0E7490 100%)',
-      }}
+     sx={{
+      minHeight: '100dvh',
+      display: 'grid',
+      placeItems: 'center',
+      px: 2,
+      py: 3,
+      background:
+    'radial-gradient(circle at 80% 20%, rgba(14, 116, 144, 0.35), transparent 45%), radial-gradient(circle at 15% 85%, rgba(16, 185, 129, 0.2), transparent 40%), linear-gradient(150deg, #041d16 0%, #062b22 50%, #071f28 100%)',
+    }}
     >
       <Paper
         sx={{
