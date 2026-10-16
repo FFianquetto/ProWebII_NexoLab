@@ -53,16 +53,16 @@ export default function RegisterPage() {
 
   return (
     <Box
-      sx={{
+        sx={{
         minHeight: '100dvh',
         display: 'grid',
         placeItems: 'center',
         px: 2,
-        py: 3,
+        py: 4,
         background:
-          'radial-gradient(circle at 82% 12%, rgba(34,166,199,0.2), transparent 28%), linear-gradient(145deg, #083528, #0D4F3C 55%, #0E7490)',
-      }}
-    >
+      'radial-gradient(circle at 85% 15%, rgba(14, 165, 233, 0.15), transparent 35%), linear-gradient(135deg, #04291F 0%, #083D2F 50%, #064E3B 100%)',
+  }}
+>
       <Paper sx={{ width: '100%', maxWidth: 480, p: { xs: 3, sm: 4 }, borderRadius: 4 }}>
         <Typography
           variant="h4"
