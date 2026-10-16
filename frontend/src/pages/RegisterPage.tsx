@@ -79,7 +79,7 @@ export default function RegisterPage() {
             {error}
           </Alert>
         )}
-        <Stack component="form" spacing={2} onSubmit={onSubmit}>
+        <Stack component="form" spacing={2.5} onSubmit={onSubmit}>
           <TextField
             label="Nombre completo"
             value={form.fullName}
@@ -116,15 +116,25 @@ export default function RegisterPage() {
           </TextField>
           {form.role === 'STUDENT' && (
             <TextField
-              label="Matrícula"
-              value={form.studentId}
-              onChange={(e) => setForm({ ...form, studentId: e.target.value })}
-              fullWidth
-            />
+            select
+            label="Rol"
+            value={form.role}
+            onChange={(e) => {
+            const newRole = e.target.value;
+            setForm({...form,role: newRole, studentId: newRole === 'TEACHER' ? '' : form.studentId,});
+           }}
+          fullWidth
+           size="medium"
+            >
+  <MenuItem value="STUDENT">Alumno</MenuItem>
+  <MenuItem value="TEACHER">Docente</MenuItem>
+</TextField>
           )}
-          <Button type="submit" variant="contained" size="large" disabled={loading}>
-            {loading ? 'Creando…' : 'Registrarme'}
-          </Button>
+          <Button type="submit" variant="contained" size="large" disabled={loading} sx={{
+              py: 1.5, fontWeight: 700, fontSize: '1rem', textTransform: 'none',borderRadius: 2, boxShadow: 3,mt: 1 }}
+          >
+          {loading ? 'Creando cuenta…' : 'Registrarme'}
+        </Button>
         </Stack>
         <Typography variant="body2" mt={2.5}>
           ¿Ya tienes cuenta?{' '}
