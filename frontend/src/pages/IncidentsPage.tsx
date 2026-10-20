@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MenuItem, TextField } from '@mui/material';
+import { MenuItem, TextField, Box } from '@mui/material';
 import ResourcePage from '../components/ResourcePage';
 import api from '../api/client';
 import type { Equipment, Incident, Laboratory, User } from '../types';
@@ -10,6 +10,21 @@ import {
   severityLabels,
 } from '../constants/labels';
 
+// Helpers para asignar colores semánticos de Material-UI
+const getSeverityColor = (severity: string) => {
+  if (severity === 'CRITICAL' || severity === 'HIGH') return 'error.main';
+  if (severity === 'MEDIUM') return 'warning.main';
+  if (severity === 'LOW') return 'success.main';
+  return 'text.primary';
+};
+
+const getStatusColor = (status: string) => {
+  if (status === 'OPEN') return 'error.main';
+  if (status === 'IN_PROGRESS') return 'info.main';
+  if (status === 'RESOLVED' || status === 'CLOSED') return 'success.main';
+  return 'text.primary';
+};
+
 export default function IncidentsPage() {
   const { user } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
@@ -17,13 +32,20 @@ export default function IncidentsPage() {
   const [equipment, setEquipment] = useState<Equipment[]>([]);
 
   useEffect(() => {
-    Promise.all([api.get('/users'), api.get('/laboratories'), api.get('/equipment')])
+    Promise.all([
+      api.get('/users'),
+      api.get('/laboratories'),
+      api.get('/equipment')
+    ])
       .then(([u, l, e]) => {
         setUsers(u.data.data);
         setLabs(l.data.data);
         setEquipment(e.data.data);
       })
-      .catch(() => undefined);
+      .catch((error) => {
+        // Optimización: No silenciar completamente el error, es útil para debugging
+        console.error('Error cargando recursos de incidencias:', error);
+      });
   }, []);
 
   return (
@@ -70,10 +92,11 @@ export default function IncidentsPage() {
         severity: values.severity,
         laboratoryId: values.laboratoryId ? String(values.laboratoryId) : null,
         equipmentId: values.equipmentId ? String(values.equipmentId) : null,
-        reportedById: String(values.reportedById || user?.id),
+        // Optimización: fallback seguro en caso de que user sea undefined en el render
+        reportedById: String(values.reportedById || user?.id || ''),
       })}
       renderForm={(values, setValues) => (
-        <>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
           <TextField
             label="Título"
             value={values.title || ''}
@@ -98,7 +121,7 @@ export default function IncidentsPage() {
             fullWidth
           >
             {Object.entries(severityLabels).map(([value, label]) => (
-              <MenuItem key={value} value={value}>
+              <MenuItem key={value} value={value} sx={{ color: getSeverityColor(value), fontWeight: 500 }}>
                 {label}
               </MenuItem>
             ))}
@@ -111,7 +134,7 @@ export default function IncidentsPage() {
             fullWidth
           >
             {Object.entries(incidentStatusLabels).map(([value, label]) => (
-              <MenuItem key={value} value={value}>
+              <MenuItem key={value} value={value} sx={{ color: getStatusColor(value), fontWeight: 500 }}>
                 {label}
               </MenuItem>
             ))}
@@ -123,7 +146,7 @@ export default function IncidentsPage() {
             onChange={(e) => setValues({ ...values, laboratoryId: e.target.value ? e.target.value : null })}
             fullWidth
           >
-            <MenuItem value="">Ninguno</MenuItem>
+            <MenuItem value=""><em>Ninguno</em></MenuItem>
             {labs.map((lab) => (
               <MenuItem key={lab.id} value={lab.id}>
                 {lab.code} - {lab.name}
@@ -137,7 +160,7 @@ export default function IncidentsPage() {
             onChange={(e) => setValues({ ...values, equipmentId: e.target.value ? e.target.value : null })}
             fullWidth
           >
-            <MenuItem value="">Ninguno</MenuItem>
+            <MenuItem value=""><em>Ninguno</em></MenuItem>
             {equipment.map((eq) => (
               <MenuItem key={eq.id} value={eq.id}>
                 {eq.inventoryCode} - {eq.name}
@@ -158,7 +181,7 @@ export default function IncidentsPage() {
               </MenuItem>
             ))}
           </TextField>
-        </>
+        </Box>
       )}
     />
   );
