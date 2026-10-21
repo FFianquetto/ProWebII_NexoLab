@@ -32,21 +32,19 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
-
     try {
       await register({
-        fullName: form.fullName.trim(),
-        email: form.email.trim(),
+        fullName: form.fullName,
+        email: form.email,
         password: form.password,
         role: form.role,
-        // Optimización: Solo enviamos la matrícula si el rol es realmente Alumno
-        studentId: form.role === 'STUDENT' && form.studentId ? form.studentId.trim() : undefined,
+        studentId: form.studentId || undefined,
       });
       navigate('/');
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'No se pudo registrar. Verifica tus datos e intenta nuevamente.';
+        'No se pudo registrar';
       setError(message);
     } finally {
       setLoading(false);
@@ -65,7 +63,7 @@ export default function RegisterPage() {
           'radial-gradient(circle at 82% 12%, rgba(34,166,199,0.2), transparent 28%), linear-gradient(145deg, #083528, #0D4F3C 55%, #0E7490)',
       }}
     >
-      <Paper elevation={6} sx={{ width: '100%', maxWidth: 480, p: { xs: 3, sm: 4 }, borderRadius: 4 }}>
+      <Paper sx={{ width: '100%', maxWidth: 480, p: { xs: 3, sm: 4 }, borderRadius: 4 }}>
         <Typography
           variant="h4"
           sx={{ fontFamily: '"DM Sans", sans-serif', fontWeight: 800, color: 'primary.main' }}
@@ -76,14 +74,12 @@ export default function RegisterPage() {
         <Typography variant="body2" color="text.secondary" mb={3}>
           Registro público de NexoLab. El alta de administradores se gestiona internamente.
         </Typography>
-
         {error && (
-          <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+          <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
         )}
-
-        <Stack component="form" spacing={2.5} onSubmit={onSubmit}>
+        <Stack component="form" spacing={2} onSubmit={onSubmit}>
           <TextField
             label="Nombre completo"
             value={form.fullName}
@@ -92,7 +88,7 @@ export default function RegisterPage() {
             fullWidth
           />
           <TextField
-            label="Correo electrónico"
+            label="Correo"
             type="email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -118,32 +114,21 @@ export default function RegisterPage() {
             <MenuItem value="STUDENT">Alumno</MenuItem>
             <MenuItem value="TEACHER">Docente</MenuItem>
           </TextField>
-
           {form.role === 'STUDENT' && (
             <TextField
               label="Matrícula"
               value={form.studentId}
               onChange={(e) => setForm({ ...form, studentId: e.target.value })}
-              required // Optimización: Si es alumno, la matrícula debería ser obligatoria
               fullWidth
             />
           )}
-
-          <Button
-            type="submit"
-            variant="contained"
-            size="large"
-            disabled={loading}
-            disableElevation
-            sx={{ mt: 1, py: 1.2, fontWeight: 600, borderRadius: 2 }}
-          >
-            {loading ? 'Creando cuenta...' : 'Registrarme'}
+          <Button type="submit" variant="contained" size="large" disabled={loading}>
+            {loading ? 'Creando…' : 'Registrarme'}
           </Button>
         </Stack>
-
-        <Typography variant="body2" mt={4} align="center" color="text.secondary">
+        <Typography variant="body2" mt={2.5}>
           ¿Ya tienes cuenta?{' '}
-          <Link component={RouterLink} to="/login" fontWeight={600} underline="hover">
+          <Link component={RouterLink} to="/login">
             Inicia sesión
           </Link>
         </Typography>
