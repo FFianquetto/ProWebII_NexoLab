@@ -1,15 +1,18 @@
-cd "c:\Users\cuale\Music\Fer_UANL\9no Semestre\ProWebII\NexoLab\backend"
-
-# 1. Crea automáticamente la base de datos 'nexolab' y las 8 colecciones con sus índices
-npm run db:push
-
-# 2. Carga los datos iniciales de prueba (Admin, Docente, Alumnos, salones, equipos y reportes)
-npm run db:seed
-
-front:
-cd "c:\Users\cuale\Music\Fer_UANL\9no Semestre\ProWebII\NexoLab\backend"
+Commands:
+cd backend
+npm install
 npm run dev
 
-back:
-cd "c:\Users\cuale\Music\Fer_UANL\9no Semestre\ProWebII\NexoLab\frontend"
+cd frontend
+npm install
 npm run dev
+
+Users:
+admin@nexolab.edu
+Admin123!
+Docente
+docente@nexolab.edu
+Teacher123!
+Alumno
+alumno@nexolab.edu
+Student123!

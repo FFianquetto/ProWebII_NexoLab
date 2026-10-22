@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   CardContent,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -23,19 +22,24 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
+import CloseIcon from '@mui/icons-material/Close';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import api from '../api/client';
 import type { Laboratory, Report, ReportsData } from '../types';
 import { tokens } from '../theme/tokens';
 import InfoCard from '../components/InfoCard';
+import { deleteActionSx, editActionSx } from '../components/ResourcePage';
+import { ReportTypeChip, RoleChip } from '../components/StatusChip';
 import {
   incidentStatusLabels,
   labelOf,
   reportColumnLabels,
-  roleLabels,
+  reportTypeLabels,
   severityLabels,
 } from '../constants/labels';
 import { useAuth } from '../context/AuthContext';
+import { getApiErrorMessage } from '../utils/apiError';
 
 const kpiLabels: Record<string, string> = {
   laboratories: 'Laboratorios',
@@ -55,13 +59,6 @@ const kpiAccents = [
   '#00B4D8',
 ];
 
-const reportTypeLabels: Record<string, string> = {
-  GENERAL: 'General',
-  OCCUPANCY: 'Ocupación de Espacios',
-  INCIDENTS: 'Incidencias y Fallas',
-  EQUIPMENT: 'Inventario de Equipos',
-};
-
 type ColumnDef = { key: string; label: string };
 
 export default function ReportsPage() {
@@ -69,16 +66,18 @@ export default function ReportsPage() {
   const [data, setData] = useState<ReportsData | null>(null);
   const [labs, setLabs] = useState<Laboratory[]>([]);
   const [openModal, setOpenModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [formError, setFormError] = useState('');
-  const [formValues, setFormValues] = useState({
+  const emptyForm = {
     title: '',
     type: 'GENERAL',
     laboratoryId: '',
     summary: '',
     notes: '',
-  });
+  };
+  const [formValues, setFormValues] = useState(emptyForm);
 
-  const canCreateReport = user?.role === 'ADMIN' || user?.role === 'TEACHER';
+  const canCreateReport = user?.role === 'ADMIN';
 
   const loadData = async () => {
     try {
@@ -97,28 +96,51 @@ export default function ReportsPage() {
     loadData();
   }, []);
 
-  const handleCreateReport = async () => {
+  const openCreateModal = () => {
+    setEditingId(null);
+    setFormValues(emptyForm);
+    setFormError('');
+    setOpenModal(true);
+  };
+
+  const openEditModal = (rep: Report) => {
+    setEditingId(rep.id);
+    setFormValues({
+      title: rep.title,
+      type: rep.type,
+      laboratoryId: rep.laboratoryId || '',
+      summary: rep.summary,
+      notes: rep.notes || '',
+    });
+    setFormError('');
+    setOpenModal(true);
+  };
+
+  const handleSaveReport = async () => {
     try {
       setFormError('');
       if (!formValues.title || !formValues.summary) {
         setFormError('El título y el resumen del reporte son obligatorios.');
         return;
       }
-      await api.post('/reports', {
+      const payload = {
         title: formValues.title,
         type: formValues.type,
         laboratoryId: formValues.laboratoryId || null,
         summary: formValues.summary,
         notes: formValues.notes || null,
-      });
+      };
+      if (editingId) {
+        await api.put(`/reports/${editingId}`, payload);
+      } else {
+        await api.post('/reports', payload);
+      }
       setOpenModal(false);
-      setFormValues({ title: '', type: 'GENERAL', laboratoryId: '', summary: '', notes: '' });
+      setEditingId(null);
+      setFormValues(emptyForm);
       await loadData();
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'Error al generar reporte';
-      setFormError(msg);
+      setFormError(getApiErrorMessage(err, 'Error al guardar reporte'));
     }
   };
 
@@ -128,10 +150,7 @@ export default function ReportsPage() {
       await api.delete(`/reports/${reportId}`);
       await loadData();
     } catch (err: unknown) {
-      alert(
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-          'No se pudo eliminar el reporte',
-      );
+      alert(getApiErrorMessage(err, 'No se pudo eliminar el reporte'));
     }
   };
 
@@ -161,22 +180,13 @@ export default function ReportsPage() {
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => {
-              setFormError('');
-              setOpenModal(true);
-            }}
+            onClick={openCreateModal}
             sx={{ flexShrink: 0 }}
           >
             Generar Reporte Oficial
           </Button>
         )}
       </Stack>
-
-      {!canCreateReport && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          <strong>Acceso de consulta para alumnos:</strong> Tienes acceso completo para visualizar todos los reportes, estadísticas y métricas operativas del sistema. La generación de reportes oficiales corresponde a maestros y administradores.
-        </Alert>
-      )}
 
       {/* Tarjetas de KPIs */}
       <Grid container spacing={2} mb={3}>
@@ -245,7 +255,7 @@ export default function ReportsPage() {
               {data.savedReports && data.savedReports.length > 0 ? (
                 data.savedReports.map((rep) => {
                   const isAuthor = rep.createdById === user?.id;
-                  const canDelete = user?.role === 'ADMIN' || (user?.role === 'TEACHER' && isAuthor);
+                  const canManage = user?.role === 'ADMIN' || (user?.role === 'TEACHER' && isAuthor);
 
                   return (
                     <TableRow key={rep.id} hover>
@@ -253,25 +263,13 @@ export default function ReportsPage() {
                         {rep.title}
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          size="small"
-                          label={reportTypeLabels[rep.type] || rep.type}
-                          color={rep.type === 'OCCUPANCY' ? 'primary' : 'default'}
-                          variant="outlined"
-                        />
+                        <ReportTypeChip type={rep.type} />
                       </TableCell>
                       <TableCell>{rep.laboratory?.code ? `${rep.laboratory.code} - ${rep.laboratory.name}` : 'General'}</TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={1} alignItems="center">
                           <span>{rep.createdBy?.fullName || 'Personal'}</span>
-                          {rep.createdBy?.role && (
-                            <Chip
-                              size="small"
-                              label={labelOf(roleLabels, rep.createdBy.role)}
-                              variant="filled"
-                              sx={{ fontSize: '0.72rem', height: 20 }}
-                            />
-                          )}
+                          <RoleChip role={rep.createdBy?.role} />
                         </Stack>
                       </TableCell>
                       <TableCell>
@@ -293,15 +291,23 @@ export default function ReportsPage() {
                       </TableCell>
                       {canCreateReport && (
                         <TableCell align="right">
-                          {canDelete && (
-                            <IconButton
-                              size="small"
-                              color="error"
-                              aria-label="Eliminar reporte"
-                              onClick={() => handleDeleteReport(rep.id)}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
+                          {canManage && (
+                            <Stack direction="row" spacing={1} justifyContent="flex-end">
+                              <IconButton
+                                aria-label="Editar reporte"
+                                onClick={() => openEditModal(rep)}
+                                sx={editActionSx}
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton
+                                aria-label="Eliminar reporte"
+                                onClick={() => handleDeleteReport(rep.id)}
+                                sx={deleteActionSx}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Stack>
                           )}
                         </TableCell>
                       )}
@@ -371,14 +377,29 @@ export default function ReportsPage() {
         }}
       />
 
-      {/* Modal para Generar Reporte Oficial */}
+      {/* Modal para Generar / Editar Reporte Oficial */}
       <Dialog
         open={openModal}
         onClose={() => setOpenModal(false)}
         fullWidth
         maxWidth="sm"
       >
-        <DialogTitle>Generar Reporte Oficial</DialogTitle>
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1,
+            pr: 1,
+          }}
+        >
+          <Typography component="span" variant="h6" fontWeight={700}>
+            {editingId ? 'Editar Reporte Oficial' : 'Generar Reporte Oficial'}
+          </Typography>
+          <IconButton aria-label="Cerrar" onClick={() => setOpenModal(false)} edge="end">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             {formError && <Alert severity="error">{formError}</Alert>}
@@ -444,8 +465,8 @@ export default function ReportsPage() {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setOpenModal(false)}>Cancelar</Button>
-          <Button variant="contained" onClick={handleCreateReport}>
-            Guardar y Publicar
+          <Button variant="contained" onClick={handleSaveReport}>
+            {editingId ? 'Guardar cambios' : 'Guardar y Publicar'}
           </Button>
         </DialogActions>
       </Dialog>

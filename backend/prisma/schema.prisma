@@ -48,6 +48,11 @@ enum IncidentSeverity {
   CRITICAL
 }
 
+enum IncidentKind {
+  LABORATORY
+  EQUIPMENT
+}
+
 model User {
   id           String        @id @default(auto()) @map("_id") @db.ObjectId
   email        String        @unique
@@ -159,6 +164,7 @@ model Incident {
   id           String           @id @default(auto()) @map("_id") @db.ObjectId
   title        String
   description  String
+  kind         IncidentKind     @default(LABORATORY)
   status       IncidentStatus   @default(OPEN)
   severity     IncidentSeverity @default(MEDIUM)
   laboratoryId String?          @map("laboratory_id") @db.ObjectId
@@ -174,6 +180,7 @@ model Incident {
   @@index([laboratoryId])
   @@index([equipmentId])
   @@index([reportedById])
+  @@index([kind])
   @@map("incidents")
 }
 

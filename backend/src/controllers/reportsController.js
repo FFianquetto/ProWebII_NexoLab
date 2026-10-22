@@ -1,8 +1,14 @@
 import { prisma } from '../lib/prisma.js';
 import { ok, fail } from '../utils/response.js';
-import { logger } from '../utils/logger.js';
+import { trackProcess } from '../utils/logger.js';
+
+const reportInclude = {
+  createdBy: { select: { id: true, fullName: true, role: true, email: true } },
+  laboratory: { select: { id: true, code: true, name: true } },
+};
 
 export async function summary(_req, res, next) {
+  const process = trackProcess('reportes.summary');
   try {
     const [
       laboratories,
@@ -51,22 +57,53 @@ export async function summary(_req, res, next) {
         },
       }),
 
-      // KPIs generales
-      Promise.all([
-        prisma.laboratory.count(),
-        prisma.equipment.count(),
-        prisma.reservation.count({ where: { status: { in: ['PENDING', 'CONFIRMED'] } } }),
-        prisma.incident.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
-        prisma.user.count({ where: { isActive: true } }),
-        prisma.report.count(),
-      ]),
+      // KPIs: labs, 24 equipos de prestamo, reservas unicas por lab/hora
+      (async () => {
+        const loanCategories = ['Computadora', 'Casco VR', 'Bocina', 'Multímetro'];
+        const [labCount, equipCount, openIncidents, activeUsers, generatedReports, activeRows] =
+          await Promise.all([
+            prisma.laboratory.count(),
+            prisma.equipment.count({
+              where: { category: { in: loanCategories } },
+            }),
+            prisma.incident.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
+            prisma.user.count({ where: { isActive: true } }),
+            prisma.report.count(),
+            prisma.reservation.findMany({
+              where: { status: { in: ['PENDING', 'CONFIRMED'] } },
+              select: {
+                laboratoryId: true,
+                startsAt: true,
+                user: { select: { role: true } },
+              },
+            }),
+          ]);
+
+        const studentSlots = new Set();
+        let teacherCount = 0;
+        for (const r of activeRows) {
+          if (r.user?.role === 'STUDENT') {
+            studentSlots.add(
+              `${r.laboratoryId}|${new Date(r.startsAt).toISOString().slice(0, 13)}`,
+            );
+          } else {
+            teacherCount += 1;
+          }
+        }
+
+        return [
+          labCount,
+          equipCount,
+          teacherCount + studentSlots.size,
+          openIncidents,
+          activeUsers,
+          generatedReports,
+        ];
+      })(),
 
       // Historial de reportes generados por maestros y administradores
       prisma.report.findMany({
-        include: {
-          createdBy: { select: { id: true, fullName: true, role: true, email: true } },
-          laboratory: { select: { id: true, code: true, name: true } },
-        },
+        include: reportInclude,
         orderBy: { createdAt: 'desc' },
         take: 50,
       }),
@@ -109,7 +146,7 @@ export async function summary(_req, res, next) {
           inventoryCode: eq.inventoryCode,
           name: eq.name,
           category: eq.category,
-          laboratoryCode: eq.laboratory?.code || '—',
+          laboratoryCode: eq.laboratory?.code || '���',
           times_used: timesUsed,
           total_quantity: totalQuantity,
         };
@@ -146,11 +183,8 @@ export async function summary(_req, res, next) {
       }))
       .sort((a, b) => b.total - a.total);
 
-    // Procesamiento Consulta 4: Demanda horaria de reservas
+    // Procesamiento Consulta 4: Demanda horaria (solo horas con reservas reales en MongoDB)
     const hourMap = new Map();
-    for (let h = 7; h <= 21; h++) {
-      hourMap.set(h, { hour_slot: h, reservations: 0, labs: new Set(), users: new Set() });
-    }
 
     for (const resItem of reservations) {
       const hour = new Date(resItem.startsAt).getHours();
@@ -170,10 +204,17 @@ export async function summary(_req, res, next) {
         labs_used: slot.labs.size,
         unique_users: slot.users.size,
       }))
-      .filter((slot) => slot.reservations > 0 || (slot.hour_slot >= 8 && slot.hour_slot <= 19))
+      .filter((slot) => slot.reservations > 0)
       .sort((a, b) => a.hour_slot - b.hour_slot);
 
-    logger.info('Reportes consultados');
+    // Equipos: solo los que tienen uso real en reservas
+    const topEquipmentUsed = topEquipment.filter((eq) => eq.times_used > 0);
+
+    process.end({
+      labs: occupancyByLab.length,
+      equipment: topEquipmentUsed.length,
+      savedReports: savedReports.length,
+    });
 
     return ok(res, {
       kpis: {
@@ -185,11 +226,26 @@ export async function summary(_req, res, next) {
         generatedReports: Number(kpiCounts[5]),
       },
       occupancyByLab,
-      topEquipment,
+      topEquipment: topEquipmentUsed,
       incidentsByStatus,
       reservationsByHour,
       savedReports,
     });
+  } catch (error) {
+    process.fail(error);
+    return next(error);
+  }
+}
+
+export async function getById(req, res, next) {
+  try {
+    const id = String(req.params.id);
+    const report = await prisma.report.findUnique({
+      where: { id },
+      include: reportInclude,
+    });
+    if (!report) return fail(res, 'Reporte no encontrado', 404);
+    return ok(res, report);
   } catch (error) {
     return next(error);
   }
@@ -198,16 +254,21 @@ export async function summary(_req, res, next) {
 // Generación / Creación de reportes:
 // REGLA: Los que hacen reportes sólo pueden ser Maestros o Administradores.
 export async function create(req, res, next) {
+  const process = trackProcess('reportes.create', { by: req.user?.id });
   try {
-    if (!req.user || !['ADMIN', 'TEACHER'].includes(req.user.role)) {
-      return fail(res, 'Sólo los maestros o administradores tienen permiso para generar reportes.', 403);
+    if (!req.user || req.user.role !== 'ADMIN') {
+      process.end({ denied: true });
+      return fail(res, 'Sólo el administrador puede generar reportes oficiales.', 403);
     }
 
     const { title, type = 'GENERAL', summary: reportSummary, notes, laboratoryId } = req.body;
 
     if (laboratoryId) {
       const lab = await prisma.laboratory.findUnique({ where: { id: laboratoryId } });
-      if (!lab) return fail(res, 'El laboratorio indicado no existe', 400);
+      if (!lab) {
+        process.end({ invalidLab: true });
+        return fail(res, 'El laboratorio indicado no existe', 400);
+      }
     }
 
     const report = await prisma.report.create({
@@ -219,44 +280,82 @@ export async function create(req, res, next) {
         laboratoryId: laboratoryId || null,
         createdById: req.user.id,
       },
-      include: {
-        createdBy: { select: { id: true, fullName: true, role: true, email: true } },
-        laboratory: { select: { id: true, code: true, name: true } },
-      },
+      include: reportInclude,
     });
 
-    logger.info('Reporte generado exitosamente', {
-      reportId: report.id,
-      createdById: req.user.id,
-      role: req.user.role,
-    });
-
+    process.end({ reportId: report.id });
     return ok(res, report, 201);
   } catch (error) {
+    process.fail(error);
     return next(error);
   }
 }
 
-// Eliminación de reportes: Maestros y Administradores
-export async function remove(req, res, next) {
+export async function update(req, res, next) {
+  const process = trackProcess('reportes.update', { id: req.params.id, by: req.user?.id });
   try {
-    if (!req.user || !['ADMIN', 'TEACHER'].includes(req.user.role)) {
-      return fail(res, 'No tienes permisos para eliminar reportes.', 403);
+    if (!req.user || req.user.role !== 'ADMIN') {
+      process.end({ denied: true });
+      return fail(res, 'Sólo el administrador puede actualizar reportes.', 403);
     }
 
     const id = String(req.params.id);
     const existing = await prisma.report.findUnique({ where: { id } });
-    if (!existing) return fail(res, 'Reporte no encontrado', 404);
+    if (!existing) {
+      process.end({ notFound: true });
+      return fail(res, 'Reporte no encontrado', 404);
+    }
 
-    // Los maestros sólo pueden borrar sus propios reportes; administradores pueden borrar cualquiera
-    if (req.user.role === 'TEACHER' && existing.createdById !== req.user.id) {
-      return fail(res, 'Los maestros sólo pueden eliminar los reportes que ellos mismos generaron.', 403);
+    const { title, type, summary: reportSummary, notes, laboratoryId } = req.body;
+
+    if (laboratoryId) {
+      const lab = await prisma.laboratory.findUnique({ where: { id: laboratoryId } });
+      if (!lab) {
+        process.end({ invalidLab: true });
+        return fail(res, 'El laboratorio indicado no existe', 400);
+      }
+    }
+
+    const report = await prisma.report.update({
+      where: { id },
+      data: {
+        ...(title !== undefined ? { title } : {}),
+        ...(type !== undefined ? { type } : {}),
+        ...(reportSummary !== undefined ? { summary: reportSummary } : {}),
+        ...(notes !== undefined ? { notes: notes || null } : {}),
+        ...(laboratoryId !== undefined ? { laboratoryId: laboratoryId || null } : {}),
+      },
+      include: reportInclude,
+    });
+
+    process.end({ reportId: report.id });
+    return ok(res, report);
+  } catch (error) {
+    process.fail(error);
+    return next(error);
+  }
+}
+
+export async function remove(req, res, next) {
+  const process = trackProcess('reportes.delete', { id: req.params.id, by: req.user?.id });
+  try {
+    if (!req.user || req.user.role !== 'ADMIN') {
+      process.end({ denied: true });
+      return fail(res, 'Sólo el administrador puede eliminar reportes.', 403);
+    }
+
+    const id = String(req.params.id);
+    const existing = await prisma.report.findUnique({ where: { id } });
+    if (!existing) {
+      process.end({ notFound: true });
+      return fail(res, 'Reporte no encontrado', 404);
     }
 
     await prisma.report.delete({ where: { id } });
-    logger.info('Reporte eliminado', { id, by: req.user.id });
+    process.end({ deleted: true });
     return ok(res, { id, deleted: true });
   } catch (error) {
+    process.fail(error);
     return next(error);
   }
 }

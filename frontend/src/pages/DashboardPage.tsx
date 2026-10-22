@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Box, CardContent, Grid, Stack, Typography, Chip } from '@mui/material';
+import { Box, CardContent, Grid, Stack, Typography } from '@mui/material';
 import api from '../api/client';
 import type { ReportsData, Reservation } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { tokens } from '../theme/tokens';
-import { labelOf, reservationStatusLabels } from '../constants/labels';
 import InfoCard from '../components/InfoCard';
+import { ReservationStatusChip, RoleChip } from '../components/StatusChip';
+import { formatReservationDateTime } from '../utils/reservationTime';
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -14,14 +15,11 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const load = async () => {
-      const [rep, res] = await Promise.all([
-        api.get('/reports'),
-        api.get('/reservations'),
-      ]);
+      const [rep, res] = await Promise.all([api.get('/reports'), api.get('/reservations')]);
       setReports(rep.data.data);
       const list = (res.data.data as Reservation[])
         .filter((r) => ['PENDING', 'CONFIRMED'].includes(r.status))
-        .slice(0, 5);
+        .slice(0, 8);
       setUpcoming(list);
     };
     load().catch(() => undefined);
@@ -30,8 +28,12 @@ export default function DashboardPage() {
   const kpis = [
     { label: 'Laboratorios', value: reports?.kpis.laboratories ?? '—', accent: tokens.primary },
     { label: 'Equipos', value: reports?.kpis.equipment ?? '—', accent: tokens.secondary },
-    { label: 'Reservas activas', value: reports?.kpis.activeReservations ?? '—', accent: tokens.primaryStrong },
-    { label: 'Incidencias abiertas', value: reports?.kpis.openIncidents ?? '—', accent: tokens.warning },
+    {
+      label: 'Reservas activas',
+      value: reports?.kpis.activeReservations ?? '—',
+      accent: tokens.primaryStrong,
+    },
+    { label: 'Fallos abiertos', value: reports?.kpis.openIncidents ?? '—', accent: tokens.warning },
   ];
 
   return (
@@ -40,7 +42,7 @@ export default function DashboardPage() {
         Hola, {user?.fullName?.split(' ')[0]}
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={3}>
-        Vista rápida del estado operativo de los laboratorios.
+        Vista rápida del estado operativo: 12 laboratorios e inventario de 24 equipos de préstamo.
       </Typography>
 
       <Grid container spacing={2} mb={3}>
@@ -79,38 +81,44 @@ export default function DashboardPage() {
             Próximas reservas
           </Typography>
           <Stack spacing={1.5}>
-            {upcoming.map((r) => (
-              <Stack
-                key={r.id}
-                direction={{ xs: 'column', sm: 'row' }}
-                justifyContent="space-between"
-                sx={{
-                  p: 1.5,
-                  borderRadius: `${tokens.radiusInfo}px`,
-                  bgcolor: tokens.surfaceMuted,
-                  border: `1px solid ${tokens.borderLight}`,
-                }}
-              >
-                <Box>
-                  <Typography fontWeight={700} sx={{ color: tokens.textOnLight }}>
-                    {r.title}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: tokens.textOnLightMuted }}>
-                    {r.laboratory?.code} · {new Date(r.startsAt).toLocaleString('es-MX')}
-                  </Typography>
-                </Box>
-                <Chip
-                  label={labelOf(reservationStatusLabels, r.status)}
-                  size="small"
+            {upcoming.map((r) => {
+              const who = r.reservedBy || r.user;
+              return (
+                <Stack
+                  key={r.id}
+                  direction={{ xs: 'column', sm: 'row' }}
+                  justifyContent="space-between"
                   sx={{
-                    alignSelf: { xs: 'flex-start', sm: 'center' },
-                    bgcolor: 'rgba(31,168,122,0.12)',
-                    color: tokens.primaryDeep,
-                    border: '1px solid rgba(31,168,122,0.25)',
+                    p: 1.5,
+                    borderRadius: `${tokens.radiusInfo}px`,
+                    bgcolor: tokens.surfaceMuted,
+                    border: `1px solid ${tokens.borderLight}`,
                   }}
-                />
-              </Stack>
-            ))}
+                >
+                  <Box>
+                    <Typography fontWeight={700} sx={{ color: tokens.textOnLight }}>
+                      {r.title}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: tokens.textOnLightMuted }}>
+                      {r.laboratory?.code} · {formatReservationDateTime(r.startsAt)}
+                      {r.groupCount && r.groupCount > 1 ? ` · ${r.groupCount} alumnos` : ''}
+                    </Typography>
+                    {who && (
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+                        <Typography variant="body2" sx={{ color: tokens.textOnLight, fontWeight: 600 }}>
+                          {who.fullName}
+                        </Typography>
+                        <RoleChip role={who.role} />
+                      </Stack>
+                    )}
+                  </Box>
+                  <ReservationStatusChip
+                    status={r.status}
+                    sx={{ alignSelf: { xs: 'flex-start', sm: 'center' } }}
+                  />
+                </Stack>
+              );
+            })}
             {upcoming.length === 0 && (
               <Typography variant="body2" sx={{ color: tokens.textOnLightMuted }}>
                 No hay reservas próximas.

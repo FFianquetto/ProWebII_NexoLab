@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -12,6 +13,7 @@ import type { User } from '../types';
 interface AuthContextValue {
   user: User | null;
   token: string | null;
+  ready: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (payload: {
     email: string;
@@ -38,6 +40,14 @@ function readStoredUser(): User | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(localStorage.getItem('nexolab_token'));
   const [user, setUser] = useState<User | null>(readStoredUser());
+  const [ready, setReady] = useState(false);
+
+  const clearSession = useCallback(() => {
+    localStorage.removeItem('nexolab_token');
+    localStorage.removeItem('nexolab_user');
+    setToken(null);
+    setUser(null);
+  }, []);
 
   const persist = (nextToken: string, nextUser: User) => {
     localStorage.setItem('nexolab_token', nextToken);
@@ -45,6 +55,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(nextToken);
     setUser(nextUser);
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydrate() {
+      const storedToken = localStorage.getItem('nexolab_token');
+      if (!storedToken) {
+        if (!cancelled) setReady(true);
+        return;
+      }
+
+      try {
+        const { data } = await api.get('/auth/me');
+        if (cancelled) return;
+        localStorage.setItem('nexolab_user', JSON.stringify(data.data));
+        setUser(data.data);
+        setToken(storedToken);
+      } catch {
+        if (!cancelled) clearSession();
+      } finally {
+        if (!cancelled) setReady(true);
+      }
+    }
+
+    hydrate();
+    return () => {
+      cancelled = true;
+    };
+  }, [clearSession]);
 
   const login = useCallback(async (email: string, password: string) => {
     const { data } = await api.post('/auth/login', { email, password });
@@ -66,15 +105,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    localStorage.removeItem('nexolab_token');
-    localStorage.removeItem('nexolab_user');
-    setToken(null);
-    setUser(null);
-  }, []);
+    clearSession();
+  }, [clearSession]);
 
   const value = useMemo(
-    () => ({ user, token, login, register, logout }),
-    [user, token, login, register, logout],
+    () => ({ user, token, ready, login, register, logout }),
+    [user, token, ready, login, register, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

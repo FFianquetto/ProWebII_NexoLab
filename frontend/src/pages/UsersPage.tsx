@@ -1,14 +1,21 @@
 import { MenuItem, TextField } from '@mui/material';
 import ResourcePage from '../components/ResourcePage';
+import { RoleChip } from '../components/StatusChip';
 import type { User } from '../types';
-import { labelOf, roleLabels } from '../constants/labels';
+import { roleLabels } from '../constants/labels';
+import { useAuth } from '../context/AuthContext';
 
 export default function UsersPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+
   return (
     <ResourcePage<User & { password?: string }>
       title="Usuarios"
-      subtitle="Cuentas del sistema con roles y estado."
       endpoint="/users"
+      canCreate={isAdmin}
+      canEdit={() => false}
+      canDelete={() => isAdmin}
       emptyForm={{
         email: '',
         fullName: '',
@@ -24,12 +31,7 @@ export default function UsersPage() {
         {
           key: 'role',
           label: 'Rol',
-          render: (row) => labelOf(roleLabels, row.role),
-        },
-        {
-          key: 'isActive',
-          label: 'Activo',
-          render: (row) => (row.isActive ? 'Sí' : 'No'),
+          render: (row) => <RoleChip role={row.role} />,
         },
       ]}
       toPayload={(values, mode) => {

@@ -1,0 +1,84 @@
+NexoLab — Aportaciones del equipo (4 integrantes)
+Proyecto: ProWebII — Plataforma de gestión de laboratorios, equipo, reservas e incidencias
+================================================================================
+
+1) Fernando
+   Rol: Base de datos MongoDB + integración con el Backend (API que ya escucha)
+   ----------------------------------------------------------------
+   - Configuración del cluster MongoDB Atlas (URI, acceso de red, base "nexolab").
+   - Diseño del esquema Prisma (8 colecciones): users, subjects, laboratories,
+     equipment, reservations, reservation_equipment, incidents, reports.
+   - Definición de enums de negocio (roles, estados de lab/equipo/reserva/incidencia).
+   - Integración ORM Prisma Client en el backend (conexión, generate, db push).
+   - Script de seed (prisma/seed.js): usuarios demo, laboratorios, equipos,
+     reservas e incidencias de prueba.
+   - Script de inicialización / índices en database/mongo-init.js.
+   - Controllers del backend que consumen Prisma para CRUD real contra MongoDB
+     (laboratorios, equipos, reservas, incidencias, usuarios, reportes, etc.).
+   - Variables de entorno DATABASE_URL, PORT=4000 y endpoint /api/health.
+   - Arranque del servidor Express en backend/src/index.js con app.listen(port):
+     al correr "npm run dev" la API ya queda escuchando en http://localhost:4000.
+   - Documentación de cómo sincronizar e insertar datos (db:generate, db:push, db:seed).
+
+   POR QUÉ CON ESTA PARTE LA APLICACIÓN YA ESCUCHA
+   ----------------------------------------------------------------
+   El frontend (puerto 2000) no habla con MongoDB directamente: solo llama a la API.
+   En el backend se monta Express, se cargan las rutas bajo /api y se ejecuta:
+
+     app.listen(PORT)  →  "NexoLab API escuchando en http://localhost:4000"
+
+   Eso significa que el proceso Node ya está vivo y acepta peticiones HTTP.
+   Como Mongo + Prisma ya están integrados (DATABASE_URL, schema, seed, controllers),
+   en cuanto el servidor escucha, la aplicación ya puede:
+     - responder /api/health,
+     - autenticar contra usuarios en Mongo,
+     - hacer CRUD real sobre las 8 colecciones.
+
+   Sin este backend escuchando y conectado a Mongo, las pantallas del frontend
+   no tendrían de dónde sacar ni guardar datos.
+
+2) Paula Elena
+   Rol: Frontend — autenticación, sesión y navegación por roles
+   ----------------------------------------------------------------
+   - Pantallas de Login y Registro (LoginPage, RegisterPage).
+   - AuthContext: guardado de JWT, usuario en sesión y cierre de sesión.
+   - Cliente Axios (api/client.ts) con Bearer token y redirección en 401.
+   - AppLayout / menú lateral: visibilidad de secciones según rol
+     (Admin, Docente, Alumno) y permisos (permissions.ts, routes.ts).
+   - Protección de rutas en App.tsx (acceso según autenticación y rol).
+   - Páginas de Usuarios (UsersPage) y Panel principal (DashboardPage)
+     consumiendo la API JSON del backend.
+
+3) [NOMBRE INTEGRANTE 3]
+   Rol: Frontend — UI Material Design y pantallas CRUD
+   ----------------------------------------------------------------
+   - Tema Material UI (theme/index.ts, tokens.ts): paleta, tipografía y estilos.
+   - Componente reutilizable ResourcePage para listados y formularios CRUD.
+   - Componentes de apoyo: StatusChip, InfoCard, ThemedScrollbar,
+     ReservationDateTimeField.
+   - Pantallas de catálogo y operación:
+     LaboratoriesPage, EquipmentPage, ReservationsPage,
+     ReservationEquipmentPage, IncidentsPage.
+   - Labels y tipado TypeScript (labels.ts, types.ts) alineados con el backend.
+   - Proxy Vite /api → backend (puerto 2000 frontend, 4000 API).
+
+4) [NOMBRE INTEGRANTE 4]
+   Rol: Backend API — seguridad, validaciones y reglas de negocio / reportes
+   ----------------------------------------------------------------
+   - Organización de rutas REST bajo /api y middleware de manejo de errores.
+   - Autenticación JWT (middleware auth): login, register, /auth/me.
+   - Autorización por roles (ADMIN / TEACHER / STUDENT) en endpoints protegidos.
+   - Validaciones Zod independientes (validators/schemas.js + middleware validate).
+   - Reglas de negocio de reservas (maestros vs alumnos / solicitantes mínimos)
+     en reservationsController y utilidades de horario (reservationTime).
+   - Módulo de reportes e indicadores multi-colección (reportsController):
+     ocupación, equipos más usados, incidencias por severidad, demanda horaria.
+   - Logs de procesos y excepciones con Winston (utils/logger.js → backend/logs/).
+   - README / commands con cuentas demo y pasos de ejecución del sistema.
+
+================================================================================
+Notas
+- Sustituir "[NOMBRE INTEGRANTE 3]" y "[NOMBRE INTEGRANTE 4]" por los nombres reales.
+- Si necesitan ajustar quién hizo qué del frontend/API, el bloque de Fernando
+  (Mongo + Prisma + seed + controllers con BD) se mantiene como su aporte principal.
+================================================================================
