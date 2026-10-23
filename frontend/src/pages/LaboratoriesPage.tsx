@@ -15,8 +15,8 @@ import { labStatusLabels } from '../constants/labels';
 import { OccupancyChip, LabStatusChip } from '../components/StatusChip';
 import { useAuth } from '../context/AuthContext';
 import { appRoutes } from '../constants/routes';
-import { Link as RouterLink } from 'react-router-dom';
-import { isStudent } from '../constants/permissions';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { isStudent, isTeacher } from '../constants/permissions';
 import { formatFreeAtTime, suggestEndFromStart } from '../utils/reservationTime';
 import api from '../api/client';
 import { getApiErrorMessage } from '../utils/apiError';
@@ -71,19 +71,49 @@ function JoinButton({
   );
 }
 
+/** Botón del docente: va a Reservas con el laboratorio ya seleccionado (reserva directa). */
+function ReserveButton({ lab, onReserve }: { lab: Laboratory; onReserve: (lab: Laboratory) => void }) {
+  return (
+    <Button
+      size="small"
+      variant="contained"
+      color="primary"
+      onClick={() => onReserve(lab)}
+      sx={{
+        mt: 0.25,
+        textTransform: 'none',
+        fontWeight: 700,
+        px: 1.5,
+        py: 0.5,
+        minHeight: 32,
+      }}
+    >
+      Reservar
+    </Button>
+  );
+}
+
 function DemandCell({
   lab,
   showStudentActions,
+  showTeacherActions,
   joiningId,
   onJoin,
+  onReserve,
 }: {
   lab: Laboratory;
   showStudentActions: boolean;
+  showTeacherActions: boolean;
   joiningId: string | null;
   onJoin: (lab: Laboratory) => void;
+  onReserve: (lab: Laboratory) => void;
 }) {
   const d = lab.demand;
   if (!d) return <Typography variant="body2">—</Typography>;
+
+  // El docente puede reservar cualquier lab activo (elige el horario en el formulario).
+  const teacherCanReserve =
+    showTeacherActions && lab.status === 'AVAILABLE' && d.occupancy !== 'UNAVAILABLE';
 
   const busy = joiningId === lab.id;
   const canJoin =
@@ -111,12 +141,19 @@ function DemandCell({
           </Typography>
         )}
         {canJoin && <JoinButton lab={lab} busy={busy} onJoin={onJoin} />}
+        {teacherCanReserve && <ReserveButton lab={lab} onReserve={onReserve} />}
       </Stack>
     );
   }
 
   if (d.occupancy === 'FREE') {
-    return <OccupancyChip occupancy="FREE" label="Disponible" />;
+    if (!teacherCanReserve) return <OccupancyChip occupancy="FREE" label="Disponible" />;
+    return (
+      <Stack spacing={0.75} alignItems="flex-start">
+        <OccupancyChip occupancy="FREE" label="Disponible" />
+        <ReserveButton lab={lab} onReserve={onReserve} />
+      </Stack>
+    );
   }
 
   if (d.occupancy === 'UNAVAILABLE') {
@@ -141,7 +178,15 @@ function DemandCell({
       {canJoin && !d.alreadyJoined && (
         <JoinButton lab={lab} busy={busy} onJoin={onJoin} />
       )}
-      {!canJoin && !showStudentActions && (
+      {teacherCanReserve && (
+        <>
+          <Typography variant="caption" sx={onLightHintSx}>
+            Puedes reservarlo en otro horario
+          </Typography>
+          <ReserveButton lab={lab} onReserve={onReserve} />
+        </>
+      )}
+      {!canJoin && !showStudentActions && !teacherCanReserve && (
         <Typography variant="caption" sx={onLightHintSx}>
           No disponible
         </Typography>
@@ -154,11 +199,18 @@ export default function LaboratoriesPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
   const student = isStudent(user?.role);
+  const teacher = isTeacher(user?.role);
+  const navigate = useNavigate();
   const [refreshKey, setRefreshKey] = useState(0);
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [joinMsg, setJoinMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(
     null,
   );
+
+  const handleReserve = (lab: Laboratory) => {
+    if (!teacher) return;
+    navigate(appRoutes.reservations, { state: { laboratoryId: lab.id } });
+  };
 
   const handleJoinRequest = async (lab: Laboratory) => {
     const d = lab.demand;
@@ -238,7 +290,8 @@ export default function LaboratoriesPage() {
             {!student && (
               <>
                 {' '}
-                Pedir un lab en{' '}
+                Como docente, pulsa <strong>Reservar</strong> en el laboratorio que quieras o
+                crea una reserva en{' '}
                 <RouterLink to={appRoutes.reservations}>Reservas</RouterLink>.
               </>
             )}
@@ -304,8 +357,10 @@ export default function LaboratoriesPage() {
                     <DemandCell
                       lab={row}
                       showStudentActions={student}
+                      showTeacherActions={teacher}
                       joiningId={joiningId}
                       onJoin={handleJoinRequest}
+                      onReserve={handleReserve}
                     />
                   ),
                 },

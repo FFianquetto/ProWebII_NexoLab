@@ -282,7 +282,17 @@ async function main() {
         endsAt,
         attendees,
         status,
-        reservationEquipment: equipment?.length ? { create: equipment } : undefined,
+        // Préstamos ligados a la reserva: toman su usuario y horario
+        reservationEquipment: equipment?.length
+          ? {
+              create: equipment.map((e) => ({
+                ...e,
+                userId,
+                startsAt,
+                endsAt,
+              })),
+            }
+          : undefined,
       },
     });
   }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Box, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import dayjs from 'dayjs';
+import { useLocation, useNavigate } from 'react-router-dom';
 import ResourcePage from '../components/ResourcePage';
 import ReservationDateTimeField, {
   type BusySlot,
@@ -213,6 +214,12 @@ export default function ReservationsPage() {
   const admin = isAdmin(currentUser?.role);
   const [labs, setLabs] = useState<Laboratory[]>([]);
   const [info, setInfo] = useState('');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [createRequest, setCreateRequest] = useState<{
+    values: Partial<Reservation>;
+    token: number;
+  } | null>(null);
 
   useEffect(() => {
     api
@@ -220,6 +227,16 @@ export default function ReservationsPage() {
       .then((l) => setLabs(l.data.data))
       .catch(() => undefined);
   }, []);
+
+  // Llegada desde Laboratorios con botón "Reservar": abrir el formulario con el lab preseleccionado.
+  useEffect(() => {
+    const state = location.state as { laboratoryId?: string } | null;
+    const laboratoryId = state?.laboratoryId;
+    if (!laboratoryId || !labs.length || !(student || teacher)) return;
+    setCreateRequest({ values: { laboratoryId }, token: Date.now() });
+    // Limpiar el state para que un refresh no vuelva a abrir el diálogo.
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.state, location.pathname, labs, student, teacher, navigate]);
 
   const defaultStart = dayjs(nextBusinessStart());
   const defaultStartIso = defaultStart.toDate().toISOString();
@@ -272,6 +289,7 @@ export default function ReservationsPage() {
           status: 'PENDING',
         }}
         canCreate={student || teacher}
+        createRequest={createRequest}
         canEdit={ownsOrAdmin}
         canDelete={ownsOrAdmin}
         getDeleteLabel={(row) =>

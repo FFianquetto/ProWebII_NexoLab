@@ -30,17 +30,22 @@ export async function list(req, res, next) {
     const now = new Date();
     const enriched = await Promise.all(
       items.map(async (item) => {
+        // Préstamo vigente ahora mismo (ventana propia del préstamo, con o sin reserva)
         const activeLoan = await prisma.reservationEquipment.findFirst({
           where: {
             equipmentId: item.id,
-            reservation: {
-              status: { in: ['PENDING', 'CONFIRMED'] },
-              endsAt: { gt: now },
-            },
+            startsAt: { lte: now },
+            endsAt: { gt: now },
           },
           select: { id: true },
         });
-        const inUse = item.status === 'IN_USE' || Boolean(activeLoan);
+        const inUse = Boolean(activeLoan);
+
+        // Un préstamo que expiró sin liberarse deja el equipo en IN_USE: volver a disponible.
+        if (!inUse && item.status === 'IN_USE') {
+          await prisma.equipment.update({ where: { id: item.id }, data: { status: 'AVAILABLE' } });
+          return { ...item, status: 'AVAILABLE', inUse };
+        }
         return { ...item, inUse };
       }),
     );
@@ -115,17 +120,12 @@ export async function update(req, res, next) {
       const activeLoan = await prisma.reservationEquipment.findFirst({
         where: {
           equipmentId: id,
-          reservation: {
-            status: { in: ['PENDING', 'CONFIRMED'] },
-            endsAt: { gt: now },
-          },
+          endsAt: { gt: now },
         },
-        include: {
-          reservation: { select: { endsAt: true, title: true } },
-        },
+        select: { id: true },
       });
 
-      if (existing.status === 'IN_USE' || activeLoan) {
+      if (activeLoan) {
         return fail(
           res,
           `No se puede poner en mantenimiento "${existing.name}": está en uso. Espera a que termine el préstamo.`,

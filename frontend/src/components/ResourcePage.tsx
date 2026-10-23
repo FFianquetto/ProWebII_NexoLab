@@ -62,6 +62,11 @@ interface ResourcePageProps<T extends { id: string }> {
   getDeleteLabel?: (row: T) => string;
   /** Acciones extra por fila (p. ej. Resolver falla). */
   renderExtraActions?: (row: T, ctx: { reload: () => Promise<void> }) => ReactNode;
+  /**
+   * Abre el diálogo de creación desde afuera (p. ej. "Reservar" desde Laboratorios).
+   * Cada cambio de `token` vuelve a abrirlo con `values` mezclados sobre `emptyForm`.
+   */
+  createRequest?: { values: Partial<T>; token: number } | null;
 }
 
 /** Lapicito amarillo / bote rojo — visibles en tablas claras */
@@ -140,6 +145,7 @@ export default function ResourcePage<T extends { id: string }>({
   validateBeforeSave,
   getDeleteLabel,
   renderExtraActions,
+  createRequest,
 }: ResourcePageProps<T>) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -181,6 +187,17 @@ export default function ResourcePage<T extends { id: string }>({
     setError('');
     setOpen(true);
   };
+
+  useEffect(() => {
+    if (!createRequest || !canCreate) return;
+    setMode('create');
+    setValues({ ...emptyForm, ...createRequest.values });
+    setEditingId(null);
+    setError('');
+    setOpen(true);
+    // Solo reaccionar a una nueva solicitud (token), no a cambios de emptyForm.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createRequest?.token]);
 
   const openEdit = (row: T) => {
     setMode('edit');

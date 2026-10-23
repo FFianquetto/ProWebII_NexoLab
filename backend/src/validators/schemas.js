@@ -162,7 +162,8 @@ export const reservationUpdateSchema = reservationBaseSchema.partial().superRefi
 });
 
 const reservationEquipmentBaseSchema = z.object({
-  reservationId: objectId,
+  /** Opcional: el préstamo no requiere reserva de laboratorio. */
+  reservationId: objectId.or(z.literal('')).optional().nullable(),
   equipmentId: objectId.optional(),
   category: z
     .enum(['Computadora', 'Casco VR', 'Bocina', 'Multímetro'], {

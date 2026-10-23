@@ -88,11 +88,17 @@ export interface Reservation {
   }>;
 }
 
+/** Préstamo individual de equipo. No requiere reserva: tiene su propia ventana. */
 export interface ReservationEquipment {
   id: string;
-  reservationId: string;
+  /** Opcional: si el préstamo se ligó a una reserva de laboratorio. */
+  reservationId?: string | null;
+  userId: string;
   equipmentId: string;
   quantity: number;
+  startsAt: string;
+  endsAt: string;
+  user?: Pick<User, 'id' | 'fullName' | 'role'>;
   reservation?: {
     id: string;
     title: string;
@@ -103,7 +109,7 @@ export interface ReservationEquipment {
     attendees?: number;
     status?: Reservation['status'];
     user?: Pick<User, 'id' | 'fullName' | 'role'>;
-  };
+  } | null;
   equipment?: {
     id: string;
     inventoryCode: string;

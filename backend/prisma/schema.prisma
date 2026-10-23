@@ -67,6 +67,7 @@ model User {
   reservations Reservation[]
   incidents    Incident[]    @relation("ReportedBy")
   reports      Report[]      @relation("ReportAuthor")
+  loans        ReservationEquipment[] @relation("LoanUser")
 
   @@map("users")
 }
@@ -146,16 +147,24 @@ model Reservation {
   @@map("reservations")
 }
 
+/// Préstamo individual de equipo (1 a 1). No requiere reserva de laboratorio:
+/// el préstamo tiene su propio usuario y ventana de tiempo. `reservationId` es
+/// opcional (si se indica, el préstamo toma el horario de esa reserva).
 model ReservationEquipment {
-  id            String      @id @default(auto()) @map("_id") @db.ObjectId
-  reservationId String      @map("reservation_id") @db.ObjectId
-  equipmentId   String      @map("equipment_id") @db.ObjectId
-  quantity      Int         @default(1)
-  createdAt     DateTime    @default(now()) @map("created_at")
-  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
-  equipment     Equipment   @relation(fields: [equipmentId], references: [id])
+  id            String       @id @default(auto()) @map("_id") @db.ObjectId
+  reservationId String?      @map("reservation_id") @db.ObjectId
+  userId        String       @map("user_id") @db.ObjectId
+  equipmentId   String       @map("equipment_id") @db.ObjectId
+  quantity      Int          @default(1)
+  startsAt      DateTime     @map("starts_at")
+  endsAt        DateTime     @map("ends_at")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  reservation   Reservation? @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  user          User         @relation("LoanUser", fields: [userId], references: [id])
+  equipment     Equipment    @relation(fields: [equipmentId], references: [id])
 
-  @@unique([reservationId, equipmentId])
+  @@index([reservationId])
+  @@index([userId])
   @@index([equipmentId])
   @@map("reservation_equipment")
 }

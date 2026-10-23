@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, MenuItem, TextField, Typography } from '@mui/material';
+import { useLocation, useNavigate } from 'react-router-dom';
 import ResourcePage from '../components/ResourcePage';
 import api from '../api/client';
 import type { Reservation, ReservationEquipment } from '../types';
@@ -17,6 +18,15 @@ type CategoryAvailability = {
   available: number;
 };
 
+type AvailabilityResponse = {
+  startsAt: string;
+  endsAt: string;
+  categories: CategoryAvailability[];
+};
+
+/** Valor del select "Tu reserva" cuando el préstamo es directo (sin reserva). */
+const DIRECT_LOAN = '';
+
 function cleanReservationTitle(title?: string) {
   if (!title) return 'Reserva';
   return title.replace(/\s*grupal\s*/gi, ' ').replace(/\s+/g, ' ').trim();
@@ -32,21 +42,31 @@ function LoanFormFields({
   activeReservations: Reservation[];
 }) {
   const [categoryAvail, setCategoryAvail] = useState<CategoryAvailability[]>([]);
+  const [loanWindow, setLoanWindow] = useState<{ startsAt: string; endsAt: string } | null>(null);
 
+  // La disponibilidad depende de la ventana: 2 h desde ahora (directo) o el horario de la reserva.
   useEffect(() => {
-    const resId = values.reservationId;
-    if (!resId) {
-      setCategoryAvail([]);
-      return;
-    }
+    const resId = values.reservationId || '';
     let cancelled = false;
     api
-      .get('/reservation-equipment/availability', { params: { reservationId: resId } })
+      .get('/reservation-equipment/availability', {
+        params: resId ? { reservationId: resId } : {},
+      })
       .then(({ data }) => {
-        if (!cancelled) setCategoryAvail((data.data || []) as CategoryAvailability[]);
+        if (cancelled) return;
+        const payload = data.data as AvailabilityResponse;
+        setCategoryAvail(payload?.categories || []);
+        setLoanWindow(
+          payload?.startsAt && payload?.endsAt
+            ? { startsAt: payload.startsAt, endsAt: payload.endsAt }
+            : null,
+        );
       })
       .catch(() => {
-        if (!cancelled) setCategoryAvail([]);
+        if (!cancelled) {
+          setCategoryAvail([]);
+          setLoanWindow(null);
+        }
       });
     return () => {
       cancelled = true;
@@ -55,24 +75,29 @@ function LoanFormFields({
 
   const selectedRes = activeReservations.find((r) => r.id === values.reservationId);
   const selectedCatInfo = categoryAvail.find((c) => c.category === values.category);
+  const endsAtLabel = loanWindow?.endsAt
+    ? formatReservationDateTime(loanWindow.endsAt)
+    : selectedRes
+      ? formatReservationDateTime(selectedRes.endsAt)
+      : null;
 
   return (
     <>
       <TextField
         select
-        label="Tu reserva"
-        value={values.reservationId || ''}
+        label="Ligar a una reserva (opcional)"
+        value={values.reservationId || DIRECT_LOAN}
         onChange={(e) =>
-          setValues({ ...values, reservationId: e.target.value, category: '', equipmentId: '' })
+          setValues({ ...values, reservationId: e.target.value || null, equipmentId: '' })
         }
-        required
         fullWidth
+        helperText={
+          selectedRes
+            ? 'El préstamo usará el horario de esa reserva.'
+            : 'No necesitas reserva de laboratorio: el préstamo dura 2 h desde ahora.'
+        }
       >
-        {activeReservations.length === 0 && (
-          <MenuItem value="" disabled>
-            No tienes reservas activas
-          </MenuItem>
-        )}
+        <MenuItem value={DIRECT_LOAN}>Sin reserva · 2 h desde ahora</MenuItem>
         {activeReservations.map((r) => (
           <MenuItem key={r.id} value={r.id}>
             {cleanReservationTitle(r.title)} · {r.laboratory?.code || 'Lab'} ·{' '}
@@ -88,11 +113,8 @@ function LoanFormFields({
         onChange={(e) => setValues({ ...values, category: e.target.value })}
         required
         fullWidth
-        disabled={!selectedRes}
         helperText={
-          selectedRes
-            ? `Préstamo individual hasta ${formatReservationDateTime(selectedRes.endsAt)}`
-            : 'Primero elige una de tus reservas'
+          endsAtLabel ? `Préstamo individual hasta ${endsAtLabel}` : 'Elige la categoría del equipo'
         }
       >
         {LOAN_CATEGORIES.map((cat) => {
@@ -135,6 +157,13 @@ export default function ReservationEquipmentPage() {
   const admin = isAdmin(user?.role);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [assignments, setAssignments] = useState<ReservationEquipment[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [createRequest, setCreateRequest] = useState<{
+    values: Partial<ReservationEquipment> & { category?: string };
+    token: number;
+  } | null>(null);
 
   const reloadExtras = () =>
     Promise.all([api.get('/reservations'), api.get('/reservation-equipment')])
@@ -142,13 +171,24 @@ export default function ReservationEquipmentPage() {
         setReservations(r.data.data as Reservation[]);
         setAssignments(a.data.data as ReservationEquipment[]);
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => setLoaded(true));
 
   useEffect(() => {
     reloadExtras();
   }, []);
 
   const now = Date.now();
+
+  // Llegada desde Equipos con botón "Pedir prestado": abrir el formulario con la categoría elegida.
+  useEffect(() => {
+    const state = location.state as { category?: string } | null;
+    const category = state?.category;
+    if (!category || !loaded || !(student || teacher)) return;
+    setCreateRequest({ values: { category }, token: Date.now() });
+    // Limpiar el state para que un refresh no vuelva a abrir el diálogo.
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.state, location.pathname, loaded, student, teacher, navigate]);
 
   const activeReservations = useMemo(
     () =>
@@ -162,21 +202,21 @@ export default function ReservationEquipmentPage() {
   const hasActiveLoan = useMemo(() => {
     if (admin) return false;
     return assignments.some((a) => {
-      const ends = a.reservation?.endsAt ? new Date(a.reservation.endsAt).getTime() : 0;
-      return a.reservation?.userId === user?.id && ends > now;
+      const ends = a.endsAt ? new Date(a.endsAt).getTime() : 0;
+      return a.userId === user?.id && ends > now;
     });
   }, [assignments, admin, user?.id, now]);
 
-  const ownsRow = (row: ReservationEquipment) =>
-    admin || row.reservation?.userId === user?.id;
+  const ownsRow = (row: ReservationEquipment) => admin || row.userId === user?.id;
 
   return (
     <>
       <Alert severity="info" sx={{ mb: 2 }}>
         <strong>Préstamo individual (1 a 1):</strong> elige qué necesitas —{' '}
-        <strong>Computadora, Casco VR, Bocina o Multímetro</strong> (6 de cada uno). Si las 6 de esa
-        categoría ya están prestadas en ese horario, no habrá disponible. Horario:{' '}
-        <strong>8:00 a.m.–8:00 p.m.</strong>, ~<strong>2 h</strong>.
+        <strong>Computadora, Casco VR, Bocina o Multímetro</strong> (6 de cada uno). No necesitas
+        reservar un laboratorio: el préstamo dura <strong>2 h</strong> desde que lo pides (o el
+        horario de tu reserva, si decides ligarlo a una). Si las 6 de esa categoría ya están
+        prestadas en ese horario, no habrá disponible.
       </Alert>
 
       {hasActiveLoan && (
@@ -189,46 +229,62 @@ export default function ReservationEquipmentPage() {
         title="Equipos prestados"
         endpoint="/reservation-equipment"
         canCreate={(student || teacher || admin) && (!hasActiveLoan || admin)}
+        createRequest={createRequest}
         canEdit={() => false}
         canDelete={ownsRow}
         emptyForm={{
-          reservationId: activeReservations[0]?.id || '',
+          reservationId: DIRECT_LOAN,
           category: '',
           quantity: 1,
         }}
         onSaved={() => reloadExtras()}
         columns={[
           {
-            key: 'reservation',
-            label: 'Reserva',
-            primary: true,
-            render: (row) => cleanReservationTitle(row.reservation?.title) || row.reservationId,
-          },
-          {
             key: 'equipment',
             label: 'Equipo',
+            primary: true,
             render: (row) =>
               row.equipment
                 ? `${row.equipment.category || ''} · ${row.equipment.name}`
                 : row.equipmentId,
           },
           {
+            key: 'reservation',
+            label: 'Reserva',
+            render: (row) =>
+              row.reservation ? cleanReservationTitle(row.reservation.title) : 'Préstamo directo',
+          },
+          ...(admin
+            ? [
+                {
+                  key: 'user',
+                  label: 'Quién',
+                  render: (row: ReservationEquipment) => row.user?.fullName || row.userId,
+                },
+              ]
+            : []),
+          {
+            key: 'startsAt',
+            label: 'Desde',
+            render: (row) => formatReservationDateTime(row.startsAt),
+          },
+          {
             key: 'endsAt',
             label: 'Hasta',
-            render: (row) => formatReservationDateTime(row.reservation?.endsAt),
+            render: (row) => formatReservationDateTime(row.endsAt),
           },
         ]}
         validateBeforeSave={async (values) => {
-          if (!values.reservationId) return 'Selecciona una reserva.';
           if (!values.category) return 'Indica qué equipo quieres (categoría).';
           if (hasActiveLoan && !admin) {
             return 'Ya tienes un equipo en préstamo. Termina ese tiempo (~2 h) antes de pedir otro.';
           }
           try {
             const { data } = await api.get('/reservation-equipment/availability', {
-              params: { reservationId: values.reservationId },
+              params: values.reservationId ? { reservationId: values.reservationId } : {},
             });
-            const list = (data.data || []) as CategoryAvailability[];
+            const list = ((data.data as AvailabilityResponse)?.categories ||
+              []) as CategoryAvailability[];
             const info = list.find((c) => c.category === values.category);
             if (info && info.available <= 0) {
               return `No hay ${values.category} disponibles por el momento.`;
@@ -239,7 +295,7 @@ export default function ReservationEquipmentPage() {
           return null;
         }}
         toPayload={(values) => ({
-          reservationId: String(values.reservationId),
+          reservationId: values.reservationId ? String(values.reservationId) : null,
           category: String(values.category),
           quantity: 1,
         })}
